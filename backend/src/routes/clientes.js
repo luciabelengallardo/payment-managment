@@ -32,7 +32,7 @@ router.get("/:id", async (req, res) => {
 });
 
 // POST - Crear cliente
-router.post("/", (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const { nombre, empresa, tipoDocumento, numeroDocumento, saldo, fecha } =
       req.body;
@@ -47,7 +47,7 @@ router.post("/", (req, res) => {
     const empresaNormalizada = empresa.trim();
 
     // Validación de duplicado (nombre + empresa)
-    const duplicado = db
+    const duplicado = await db
       .prepare("SELECT id FROM clientes WHERE nombre = ? AND empresa = ?")
       .get(nombreNormalizado, empresaNormalizada);
 
@@ -60,7 +60,7 @@ router.post("/", (req, res) => {
 
     // Verificar si ya existe un documento con el mismo tipo y número
     if (numeroDocumento && numeroDocumento.trim && numeroDocumento.trim()) {
-      const documentoExistente = db
+      const documentoExistente = await db
         .prepare(
           "SELECT * FROM clientes WHERE tipoDocumento = ? AND numeroDocumento = ?",
         )
@@ -82,7 +82,7 @@ router.post("/", (req, res) => {
     // Redondear el saldo a 2 decimales
     const saldoRedondeado = Math.round((parseFloat(saldo) || 0) * 100) / 100;
 
-    const result = stmt.run(
+    const result = await stmt.run(
       nombreNormalizado,
       empresaNormalizada,
       tipoDocumento || "Factura",
@@ -91,7 +91,7 @@ router.post("/", (req, res) => {
       fecha || null,
     );
 
-    const nuevoCliente = db
+    const nuevoCliente = await db
       .prepare("SELECT * FROM clientes WHERE id = ?")
       .get(result.lastInsertRowid);
     res.status(201).json({ success: true, data: nuevoCliente });
@@ -108,7 +108,7 @@ router.post("/", (req, res) => {
 });
 
 // PUT - Actualizar cliente
-router.put("/:id", (req, res) => {
+router.put("/:id", async (req, res) => {
   try {
     const { nombre, empresa, tipoDocumento, numeroDocumento, saldo, fecha } =
       req.body;
@@ -118,7 +118,7 @@ router.put("/:id", (req, res) => {
       const nombreNormalizado = nombre.trim();
       const empresaNormalizada = empresa.trim();
 
-      const duplicado = db
+      const duplicado = await db
         .prepare(
           "SELECT id FROM clientes WHERE nombre = ? AND empresa = ? AND id != ?",
         )
@@ -134,7 +134,7 @@ router.put("/:id", (req, res) => {
 
     // Verificar si ya existe otro documento con el mismo tipo y número
     if (numeroDocumento && numeroDocumento.trim && numeroDocumento.trim()) {
-      const documentoExistente = db
+      const documentoExistente = await db
         .prepare(
           "SELECT * FROM clientes WHERE tipoDocumento = ? AND numeroDocumento = ? AND id != ?",
         )
@@ -164,7 +164,7 @@ router.put("/:id", (req, res) => {
     const saldoRedondeado =
       saldo !== undefined ? Math.round(parseFloat(saldo) * 100) / 100 : null;
 
-    stmt.run(
+    await stmt.run(
       nombre || null,
       empresa || null,
       tipoDocumento || null,
@@ -174,7 +174,7 @@ router.put("/:id", (req, res) => {
       req.params.id,
     );
 
-    const clienteActualizado = db
+    const clienteActualizado = await db
       .prepare("SELECT * FROM clientes WHERE id = ?")
       .get(req.params.id);
     if (!clienteActualizado)
@@ -195,10 +195,10 @@ router.put("/:id", (req, res) => {
 });
 
 // DELETE - Eliminar cliente
-router.delete("/:id", (req, res) => {
+router.delete("/:id", async (req, res) => {
   try {
     const stmt = db.prepare("DELETE FROM clientes WHERE id = ?");
-    const result = stmt.run(req.params.id);
+    const result = await stmt.run(req.params.id);
 
     if (result.changes === 0)
       return res

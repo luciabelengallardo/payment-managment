@@ -4,9 +4,9 @@ import db from "../db.js";
 const router = express.Router();
 
 // GET - Obtener todos los documentos
-router.get("/", (req, res) => {
+router.get("/", async (req, res) => {
   try {
-    const documentos = db
+    const documentos = await db
       .prepare("SELECT * FROM documentos ORDER BY fecha DESC")
       .all();
     res.json({ success: true, data: documentos });
@@ -16,10 +16,10 @@ router.get("/", (req, res) => {
 });
 
 // GET - Obtener documentos pendientes de un cliente
-router.get("/cliente/:clienteId", (req, res) => {
+router.get("/cliente/:clienteId", async (req, res) => {
   try {
     const { clienteId } = req.params;
-    const documentos = db
+    const documentos = await db
       .prepare(
         "SELECT * FROM documentos WHERE clienteId = ? AND saldoPendiente > 0 ORDER BY fecha DESC",
       )
@@ -31,7 +31,7 @@ router.get("/cliente/:clienteId", (req, res) => {
 });
 
 // POST - Crear documento
-router.post("/", (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const { clienteId, tipo, numero, empresa, monto, fecha } = req.body;
 
@@ -45,7 +45,7 @@ router.post("/", (req, res) => {
     // Redondear a 2 decimales para evitar problemas de precisión
     const montoRedondeado = Math.round(parseFloat(monto) * 100) / 100;
 
-    const resultado = db
+    const resultado = await db
       .prepare(
         "INSERT INTO documentos (clienteId, tipo, numero, empresa, monto, saldoPendiente, fecha) VALUES (?, ?, ?, ?, ?, ?, ?)",
       )
@@ -59,7 +59,7 @@ router.post("/", (req, res) => {
         fecha,
       );
 
-    const documento = db
+    const documento = await db
       .prepare("SELECT * FROM documentos WHERE id = ?")
       .get(resultado.lastInsertRowid);
 
@@ -70,7 +70,7 @@ router.post("/", (req, res) => {
 });
 
 // PUT - Actualizar documento
-router.put("/:id", (req, res) => {
+router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const { saldoPendiente } = req.body;
@@ -78,7 +78,7 @@ router.put("/:id", (req, res) => {
     // Redondear a 2 decimales para evitar problemas de precisión
     const saldoRedondeado = Math.round(parseFloat(saldoPendiente) * 100) / 100;
 
-    const resultado = db
+    const resultado = await db
       .prepare("UPDATE documentos SET saldoPendiente = ? WHERE id = ?")
       .run(saldoRedondeado, id);
 
@@ -88,7 +88,7 @@ router.put("/:id", (req, res) => {
         .json({ success: false, message: "Documento no encontrado" });
     }
 
-    const documento = db
+    const documento = await db
       .prepare("SELECT * FROM documentos WHERE id = ?")
       .get(id);
 
@@ -99,10 +99,10 @@ router.put("/:id", (req, res) => {
 });
 
 // DELETE - Eliminar documento
-router.delete("/:id", (req, res) => {
+router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const resultado = db.prepare("DELETE FROM documentos WHERE id = ?").run(id);
+    const resultado = await db.prepare("DELETE FROM documentos WHERE id = ?").run(id);
 
     if (resultado.changes === 0) {
       return res
