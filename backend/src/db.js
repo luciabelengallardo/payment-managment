@@ -15,7 +15,9 @@ let db;
 
 async function initializeDatabase() {
   if (useTurso) {
-    console.log("🌐 Conectando a Turso (base de datos persistente en la nube)...");
+    console.log(
+      "🌐 Conectando a Turso (base de datos persistente en la nube)...",
+    );
     const dbModule = await import("./db-adapter.js");
     db = dbModule.default;
   } else {
@@ -81,13 +83,13 @@ async function initializeDatabase() {
     console.log("✅ Tablas SQLite inicializadas");
   }
 
-if (useTurso) {
-  await db.exec(initSQL);
-  console.log("✅ Tablas de Turso inicializadas");
-} else {
-  db.exec(initSQL);
-  console.log("✅ Tablas SQLite inicializadas");
-}
+  if (useTurso) {
+    await db.exec(initSQL);
+    console.log("✅ Tablas de Turso inicializadas");
+  } else {
+    db.exec(initSQL);
+    console.log("✅ Tablas SQLite inicializadas");
+  }
 
   // Migraciones (solo para SQLite local, Turso ya tiene las tablas correctas)
   if (!useTurso) {
@@ -104,9 +106,13 @@ if (useTurso) {
 
     try {
       const tableInfo = db.prepare("PRAGMA table_info(pagos)").all();
-      const tieneDocumentoId = tableInfo.some((col) => col.name === "documentoId");
+      const tieneDocumentoId = tableInfo.some(
+        (col) => col.name === "documentoId",
+      );
       if (!tieneDocumentoId) {
-        db.exec("ALTER TABLE pagos ADD COLUMN documentoId INTEGER REFERENCES documentos(id) ON DELETE SET NULL");
+        db.exec(
+          "ALTER TABLE pagos ADD COLUMN documentoId INTEGER REFERENCES documentos(id) ON DELETE SET NULL",
+        );
         console.log("✅ Migración: columna 'documentoId' agregada");
       }
     } catch (error) {
@@ -114,7 +120,9 @@ if (useTurso) {
     }
 
     try {
-      db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_clientes_nombre_empresa ON clientes (nombre, empresa)`);
+      db.exec(
+        `CREATE UNIQUE INDEX IF NOT EXISTS idx_clientes_nombre_empresa ON clientes (nombre, empresa)`,
+      );
       console.log("✅ Índice único creado");
     } catch (error) {
       // Ignorar si ya existe
