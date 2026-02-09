@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { DollarSign, Menu, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useState } from "react";
 
 export default function Navbar() {
@@ -9,13 +9,12 @@ export default function Navbar() {
     <nav className="bg-white shadow-sm border-b">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          <Link
-            to="/"
-            className="flex items-center gap-2 text-xl md:text-2xl font-bold text-primary"
-          >
-            <DollarSign className="w-6 h-6 md:w-8 md:h-8" />
-            <span className="hidden sm:inline">Payment Manager</span>
-            <span className="sm:hidden">PM</span>
+          <Link to="/" className="flex items-center gap-2">
+            <img
+              src="/logo.png"
+              alt="Payment Manager"
+              className="h-8 md:h-10 w-auto"
+            />
           </Link>
 
           {/* Desktop Menu */}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import axios from "axios";
 import { DollarSign, Plus, X } from "lucide-react";
@@ -10,6 +10,7 @@ import PagoForm from "../components/PagoForm";
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 export default function Clientes() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [clientes, setClientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [nuevoClienteNombre, setNuevoClienteNombre] = useState("");
@@ -24,6 +25,25 @@ export default function Clientes() {
   useEffect(() => {
     fetchClientes();
   }, []);
+
+  useEffect(() => {
+    // Si hay un ID en la URL, expandir ese cliente automáticamente
+    const clienteId = searchParams.get("id");
+    if (clienteId && clientes.length > 0) {
+      const clienteIdNum = parseInt(clienteId);
+      const clienteExiste = clientes.find((c) => c.id === clienteIdNum);
+      if (clienteExiste) {
+        handleSelectCliente(clienteIdNum);
+        // Scroll al cliente después de un pequeño delay para que se expanda primero
+        setTimeout(() => {
+          const elemento = document.getElementById(`cliente-${clienteIdNum}`);
+          if (elemento) {
+            elemento.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }, 100);
+      }
+    }
+  }, [searchParams, clientes]);
 
   const fetchClientes = async () => {
     try {
@@ -247,7 +267,7 @@ export default function Clientes() {
                     <ul className="divide-y">
                       {(searchTerm ? clienteFiltrados : clientes).map(
                         (cliente) => (
-                          <li key={cliente.id}>
+                          <li key={cliente.id} id={`cliente-${cliente.id}`}>
                             <button
                               onClick={() => handleSelectCliente(cliente.id)}
                               className="w-full text-left px-4 py-3 hover:bg-blue-50 transition flex justify-between items-center"
