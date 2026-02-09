@@ -1,7 +1,6 @@
 import express from "express";
-import dbPromise from "../db.js";
+import db from "../db.js";
 
-const db = await dbPromise;
 const router = express.Router();
 
 // GET - Obtener todos los documentos

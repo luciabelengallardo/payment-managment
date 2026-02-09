@@ -4,12 +4,9 @@ import dotenv from "dotenv";
 import pagoRoutes from "./routes/pagos.js";
 import clienteRoutes from "./routes/clientes.js";
 import documentoRoutes from "./routes/documentos.js";
-import dbPromise from "./db.js";
+import db from "./db.js";
 
 dotenv.config();
-
-// Esperar a que la base de datos se inicialice antes de arrancar el servidor
-const db = await dbPromise;
 
 const app = express();
 const PORT = process.env.PORT || 8000;

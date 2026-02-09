@@ -124,7 +124,7 @@ if (useTurso) {
   return db;
 }
 
-// Exportar promesa de inicialización
-const dbPromise = initializeDatabase();
+// Inicializar y exportar la base de datos
+await initializeDatabase();
 
-export default dbPromise;
+export default db;
