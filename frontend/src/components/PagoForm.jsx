@@ -22,6 +22,12 @@ export default function PagoForm({
   const [documentos, setDocumentos] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
+  const [detallesPago, setDetallesPago] = useState([
+    { formaPago: "Transferencia", monto: "" },
+  ]);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmModalMessage, setConfirmModalMessage] = useState("");
+  const [pendingSubmit, setPendingSubmit] = useState(null);
 
   useEffect(() => {
     if (formData.clienteId) {
@@ -90,13 +96,104 @@ export default function PagoForm({
     return documentos.find((doc) => doc.id === formData.documentoId);
   };
 
+  const agregarDetallePago = () => {
+    setDetallesPago([
+      ...detallesPago,
+      { formaPago: "Transferencia", monto: "" },
+    ]);
+  };
+
+  const eliminarDetallePago = (index) => {
+    if (detallesPago.length > 1) {
+      setDetallesPago(detallesPago.filter((_, i) => i !== index));
+    }
+  };
+
+  const handleDetalleChange = (index, field, value) => {
+    const nuevosDetalles = [...detallesPago];
+    if (field === "monto") {
+      // Redondear a 2 decimales
+      const valorNumerico = parseFloat(value);
+      nuevosDetalles[index][field] = isNaN(valorNumerico)
+        ? ""
+        : Math.round(valorNumerico * 100) / 100;
+    } else {
+      nuevosDetalles[index][field] = value;
+    }
+    setDetallesPago(nuevosDetalles);
+  };
+
+  const calcularTotalPagos = () => {
+    return detallesPago.reduce((total, detalle) => {
+      return total + (parseFloat(detalle.monto) || 0);
+    }, 0);
+  };
+
+  const validarMontos = () => {
+    const documentoSeleccionado = getDocumentoSeleccionado();
+    if (!documentoSeleccionado) return true; // Si no hay documento, no validamos
+
+    const totalPagos = calcularTotalPagos();
+    const saldoPendiente = documentoSeleccionado.saldoPendiente;
+
+    return Math.abs(totalPagos - saldoPendiente) < 0.01; // Tolerancia para decimales
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!formData.clienteId || !formData.monto) {
-      alert("Completa todos los campos requeridos");
+    if (!formData.clienteId) {
+      setConfirmModalMessage("Debes seleccionar un cliente");
+      setShowConfirmModal(true);
       return;
     }
-    onSave(formData);
+
+    const totalPagos = calcularTotalPagos();
+    if (totalPagos === 0) {
+      setConfirmModalMessage("Debes ingresar al menos un monto");
+      setShowConfirmModal(true);
+      return;
+    }
+
+    const documentoSeleccionado = getDocumentoSeleccionado();
+    if (documentoSeleccionado && !validarMontos()) {
+      const diferencia = Math.abs(
+        documentoSeleccionado.saldoPendiente - totalPagos,
+      );
+      const tipo =
+        totalPagos > documentoSeleccionado.saldoPendiente ? "excede" : "falta";
+      setConfirmModalMessage(
+        `El total ingresado ($${totalPagos.toFixed(2)}) ${tipo} $${diferencia.toFixed(2)} del saldo pendiente ($${documentoSeleccionado.saldoPendiente.toFixed(2)}). ¿Deseas guardar de todas formas?`,
+      );
+      setPendingSubmit(() => () => guardarPago(totalPagos));
+      setShowConfirmModal(true);
+      return;
+    }
+
+    guardarPago(totalPagos);
+  };
+
+  const guardarPago = (totalPagos) => {
+    // Enviamos los datos con los detalles de pago
+    const datosParaGuardar = {
+      ...formData,
+      monto: totalPagos,
+      detallesPago: detallesPago.filter((d) => d.monto > 0),
+    };
+
+    onSave(datosParaGuardar);
+  };
+
+  const handleConfirm = () => {
+    if (pendingSubmit) {
+      pendingSubmit();
+      setPendingSubmit(null);
+    }
+    setShowConfirmModal(false);
+  };
+
+  const handleCancelConfirm = () => {
+    setPendingSubmit(null);
+    setShowConfirmModal(false);
   };
 
   return (
@@ -219,52 +316,137 @@ export default function PagoForm({
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Saldo Pendiente
+                Saldo Pendiente a Pagar *
               </label>
               <input
                 type="text"
                 value={`$${getDocumentoSeleccionado().saldoPendiente.toFixed(2)}`}
                 disabled
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 font-semibold"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-blue-50 text-blue-700 font-bold text-lg"
               />
             </div>
           </>
         )}
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Monto *
-          </label>
-          <input
-            type="number"
-            name="monto"
-            value={formData.monto}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="0.00"
-            step="0.01"
-          />
-        </div>
+        {/* Sección de detalles de pago */}
+        <div className="col-span-2">
+          <div className="flex justify-between items-center mb-3">
+            <label className="block text-sm font-medium text-gray-700">
+              Detalles del Pago *
+            </label>
+            <button
+              type="button"
+              onClick={agregarDetallePago}
+              className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium transition"
+            >
+              + Agregar Forma de Pago
+            </button>
+          </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Forma de Pago
-          </label>
-          <select
-            name="formaPago"
-            value={formData.formaPago}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="Transferencia">Transferencia</option>
-            <option value="Efectivo">Efectivo</option>
-            <option value="Deposito">Depósito</option>
-            <option value="Cheque">Cheque</option>
-            <option value="E-Cheq">E-Cheq</option>
-            <option value="Ret Ganancias">Ret Ganancias</option>
-            <option value="Ret IIBB">Ret IIBB</option>
-            <option value="A/Cta">A/Cta</option>
-          </select>
+          <div className="space-y-2">
+            {detallesPago.map((detalle, index) => (
+              <div key={index} className="flex gap-2 items-start">
+                <div className="flex-1">
+                  <select
+                    value={detalle.formaPago}
+                    onChange={(e) =>
+                      handleDetalleChange(index, "formaPago", e.target.value)
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="Transferencia">Transferencia</option>
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Deposito">Depósito</option>
+                    <option value="Cheque">Cheque</option>
+                    <option value="E-Cheq">E-Cheq</option>
+                    <option value="Ret Ganancias">Ret Ganancias</option>
+                    <option value="Ret IIBB">Ret IIBB</option>
+                    <option value="A/Cta">A/Cta</option>
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <input
+                    type="number"
+                    value={detalle.monto}
+                    onChange={(e) =>
+                      handleDetalleChange(index, "monto", e.target.value)
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Monto"
+                    step="0.01"
+                  />
+                </div>
+                {detallesPago.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => eliminarDetallePago(index)}
+                    className="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg transition"
+                  >
+                    🗑️
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Mostrar total y validación */}
+          <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="flex justify-between items-center">
+              <span className="font-medium text-gray-700">Total a Pagar:</span>
+              <span className="text-xl font-bold text-blue-600">
+                ${calcularTotalPagos().toFixed(2)}
+              </span>
+            </div>
+            {getDocumentoSeleccionado() && (
+              <div className="mt-2">
+                {validarMontos() ? (
+                  <div className="flex items-center gap-2 text-green-600 text-sm">
+                    <span>✓</span>
+                    <span>El total coincide con el saldo pendiente</span>
+                  </div>
+                ) : (
+                  <div className="text-red-600 text-sm space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span>⚠</span>
+                      <span className="font-semibold">
+                        Los montos no coinciden
+                      </span>
+                    </div>
+                    <div className="ml-5 text-xs space-y-0.5">
+                      <div className="flex justify-between">
+                        <span>Total ingresado:</span>
+                        <span className="font-medium">
+                          ${calcularTotalPagos().toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Factura a Pagar:</span>
+                        <span className="font-medium">
+                          $
+                          {getDocumentoSeleccionado().saldoPendiente.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between border-t border-red-300 pt-0.5 mt-0.5">
+                        <span className="font-semibold">
+                          {calcularTotalPagos() >
+                          getDocumentoSeleccionado().saldoPendiente
+                            ? "Excedente:"
+                            : "Falta:"}
+                        </span>
+                        <span className="font-bold">
+                          $
+                          {Math.abs(
+                            getDocumentoSeleccionado().saldoPendiente -
+                              calcularTotalPagos(),
+                          ).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         <div>
@@ -310,6 +492,56 @@ export default function PagoForm({
           </button>
         </div>
       </form>
+
+      {/* Modal de Confirmación */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 animate-scale-in">
+            <div className="flex items-start gap-4">
+              <div
+                className={`flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center ${
+                  pendingSubmit ? "bg-yellow-100" : "bg-red-100"
+                }`}
+              >
+                <span className="text-2xl">{pendingSubmit ? "⚠️" : "❌"}</span>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  {pendingSubmit ? "Confirmar Acción" : "Atención"}
+                </h3>
+                <p className="text-gray-700 text-sm leading-relaxed">
+                  {confirmModalMessage}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              {pendingSubmit ? (
+                <>
+                  <button
+                    onClick={handleCancelConfirm}
+                    className="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium transition"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleConfirm}
+                    className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition"
+                  >
+                    Guardar de todas formas
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={handleCancelConfirm}
+                  className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition"
+                >
+                  Entendido
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

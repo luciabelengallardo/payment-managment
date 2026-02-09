@@ -45,6 +45,24 @@ export default function DocumentoTable({
       .reduce((sum, pago) => sum + pago.monto, 0);
   };
 
+  const calcularTotalesGenerales = () => {
+    const montoTotal = documentos.reduce(
+      (sum, doc) => sum + (doc.monto || 0),
+      0,
+    );
+    const totalPagado = documentos.reduce((sum, doc) => {
+      return sum + calcularTotalPagado(doc.id);
+    }, 0);
+    const saldoPendiente = documentos.reduce(
+      (sum, doc) => sum + (doc.saldoPendiente || 0),
+      0,
+    );
+
+    return { montoTotal, totalPagado, saldoPendiente };
+  };
+
+  const totales = calcularTotalesGenerales();
+
   const handleDelete = async (id) => {
     if (
       window.confirm("¿Estás seguro de que deseas eliminar este documento?")
@@ -128,6 +146,28 @@ export default function DocumentoTable({
             </div>
           );
         })}
+
+        {/* Totales en Mobile */}
+        <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-4 border-2 border-blue-300 space-y-2">
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-gray-700">Monto Total:</span>
+            <span className="font-bold text-blue-600">
+              {formatCurrency(totales.montoTotal)}
+            </span>
+          </div>
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-gray-700">Total Pagado:</span>
+            <span className="font-bold text-green-600">
+              {formatCurrency(totales.totalPagado)}
+            </span>
+          </div>
+          <div className="flex justify-between items-center text-sm border-t border-blue-200 pt-2">
+            <span className="font-bold text-gray-900">Saldo Pendiente:</span>
+            <span className="font-bold text-red-600 text-lg">
+              {formatCurrency(totales.saldoPendiente)}
+            </span>
+          </div>
+        </div>
       </div>
 
       {/* Vista Desktop - Tabla */}
@@ -203,6 +243,37 @@ export default function DocumentoTable({
                 );
               })}
             </tbody>
+            <tfoot className="bg-gray-50 border-t-2 border-gray-300">
+              <tr>
+                <td
+                  colSpan="4"
+                  className="px-6 py-4 text-right font-bold text-gray-900"
+                >
+                  TOTALES:
+                </td>
+                <td className="px-6 py-4">
+                  <div className="font-bold text-blue-600 text-base">
+                    {formatCurrency(totales.montoTotal)}
+                  </div>
+                  <div className="text-xs text-gray-600 mt-1">Monto Total</div>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="font-bold text-green-600 text-base">
+                    {formatCurrency(totales.totalPagado)}
+                  </div>
+                  <div className="text-xs text-gray-600 mt-1">Total Pagado</div>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="font-bold text-red-600 text-base">
+                    {formatCurrency(totales.saldoPendiente)}
+                  </div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    Saldo Pendiente
+                  </div>
+                </td>
+                <td></td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>
