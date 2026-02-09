@@ -143,6 +143,7 @@ export default function DocumentoForm({
             name="fecha"
             value={formData.fecha}
             onChange={handleChange}
+            onClick={(e) => e.target.showPicker?.()}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
           />
         </div>

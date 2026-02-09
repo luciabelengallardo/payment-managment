@@ -150,7 +150,11 @@ router.post("/", async (req, res) => {
       for (const detalle of detallesPago) {
         const montoDetalleRedondeado =
           Math.round(parseFloat(detalle.monto) * 100) / 100;
-        await insertDetalle.run(pagoId, detalle.formaPago, montoDetalleRedondeado);
+        await insertDetalle.run(
+          pagoId,
+          detalle.formaPago,
+          montoDetalleRedondeado,
+        );
       }
     } else {
       // Si no hay detalles, crear uno con el monto total
@@ -164,7 +168,8 @@ router.post("/", async (req, res) => {
     // Actualizar el saldo del cliente (restar el monto del pago)
     const nuevoSaldo =
       Math.round((cliente.saldo - montoRedondeado) * 100) / 100;
-    await db.prepare("UPDATE clientes SET saldo = ? WHERE id = ?")
+    await db
+      .prepare("UPDATE clientes SET saldo = ? WHERE id = ?")
       .run(nuevoSaldo, clienteId);
 
     // Actualizar el saldo pendiente del documento si existe
@@ -178,7 +183,8 @@ router.post("/", async (req, res) => {
           0,
           Math.round((documento.saldoPendiente - montoRedondeado) * 100) / 100,
         );
-        await db.prepare("UPDATE documentos SET saldoPendiente = ? WHERE id = ?")
+        await db
+          .prepare("UPDATE documentos SET saldoPendiente = ? WHERE id = ?")
           .run(nuevoSaldoPendiente, validDocumentoId);
       }
     }
@@ -290,10 +296,9 @@ router.delete("/:id", async (req, res) => {
       .prepare("SELECT * FROM clientes WHERE id = ?")
       .get(pago.clienteId);
     const nuevoSaldo = cliente.saldo + pago.monto;
-    await db.prepare("UPDATE clientes SET saldo = ? WHERE id = ?").run(
-      nuevoSaldo,
-      pago.clienteId,
-    );
+    await db
+      .prepare("UPDATE clientes SET saldo = ? WHERE id = ?")
+      .run(nuevoSaldo, pago.clienteId);
 
     await db.prepare("DELETE FROM pagos WHERE id = ?").run(req.params.id);
     res.json({ success: true, message: "Pago eliminado correctamente" });

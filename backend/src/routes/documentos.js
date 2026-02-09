@@ -102,7 +102,9 @@ router.put("/:id", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const resultado = await db.prepare("DELETE FROM documentos WHERE id = ?").run(id);
+    const resultado = await db
+      .prepare("DELETE FROM documentos WHERE id = ?")
+      .run(id);
 
     if (resultado.changes === 0) {
       return res
