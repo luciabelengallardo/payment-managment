@@ -1,6 +1,7 @@
 import express from "express";
-import db from "../db-adapter.js";
+import dbPromise from "../db.js";
 
+const db = await dbPromise;
 const router = express.Router();
 
 // GET - Obtener todos los documentos
@@ -49,7 +50,15 @@ router.post("/", (req, res) => {
       .prepare(
         "INSERT INTO documentos (clienteId, tipo, numero, empresa, monto, saldoPendiente, fecha) VALUES (?, ?, ?, ?, ?, ?, ?)",
       )
-      .run(clienteId, tipo, numero, empresa, montoRedondeado, montoRedondeado, fecha);
+      .run(
+        clienteId,
+        tipo,
+        numero,
+        empresa,
+        montoRedondeado,
+        montoRedondeado,
+        fecha,
+      );
 
     const documento = db
       .prepare("SELECT * FROM documentos WHERE id = ?")

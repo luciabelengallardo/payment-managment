@@ -1,6 +1,7 @@
 import express from "express";
-import db from "../db-adapter.js";
+import dbPromise from "../db.js";
 
+const db = await dbPromise;
 const router = express.Router();
 
 // GET - Obtener todos los pagos
@@ -24,7 +25,7 @@ router.get("/", (req, res) => {
     const pagosConDetalles = pagos.map((pago) => {
       const detalles = db
         .prepare(
-          `SELECT id, formaPago, monto FROM pagos_detalle WHERE pagoId = ?`
+          `SELECT id, formaPago, monto FROM pagos_detalle WHERE pagoId = ?`,
         )
         .all(pago.id);
       return { ...pago, detallesPago: detalles };
@@ -60,7 +61,9 @@ router.get("/:id", (req, res) => {
 
     // Obtener detalles de pago
     const detalles = db
-      .prepare(`SELECT id, formaPago, monto FROM pagos_detalle WHERE pagoId = ?`)
+      .prepare(
+        `SELECT id, formaPago, monto FROM pagos_detalle WHERE pagoId = ?`,
+      )
       .all(pago.id);
 
     res.json({ success: true, data: { ...pago, detallesPago: detalles } });
@@ -72,8 +75,15 @@ router.get("/:id", (req, res) => {
 // POST - Crear nuevo pago
 router.post("/", (req, res) => {
   try {
-    const { clienteId, documentoId, monto, formaPago, fecha, descripcion, detallesPago } =
-      req.body;
+    const {
+      clienteId,
+      documentoId,
+      monto,
+      formaPago,
+      fecha,
+      descripcion,
+      detallesPago,
+    } = req.body;
 
     if (!clienteId || !monto) {
       return res
@@ -116,8 +126,12 @@ router.post("/", (req, res) => {
       VALUES (?, ?, ?)
     `);
 
-    const actualizarCliente = db.prepare("UPDATE clientes SET saldo = ? WHERE id = ?");
-    const actualizarDocumento = db.prepare("UPDATE documentos SET saldoPendiente = ? WHERE id = ?");
+    const actualizarCliente = db.prepare(
+      "UPDATE clientes SET saldo = ? WHERE id = ?",
+    );
+    const actualizarDocumento = db.prepare(
+      "UPDATE documentos SET saldoPendiente = ? WHERE id = ?",
+    );
 
     // Redondear montos a 2 decimales para evitar problemas de precisión
     const montoRedondeado = Math.round(parseFloat(monto) * 100) / 100;
@@ -137,18 +151,28 @@ router.post("/", (req, res) => {
       const pagoId = result.lastInsertRowid;
 
       // Insertar detalles de pago
-      if (detallesPago && Array.isArray(detallesPago) && detallesPago.length > 0) {
+      if (
+        detallesPago &&
+        Array.isArray(detallesPago) &&
+        detallesPago.length > 0
+      ) {
         for (const detalle of detallesPago) {
-          const montoDetalleRedondeado = Math.round(parseFloat(detalle.monto) * 100) / 100;
+          const montoDetalleRedondeado =
+            Math.round(parseFloat(detalle.monto) * 100) / 100;
           insertDetalle.run(pagoId, detalle.formaPago, montoDetalleRedondeado);
         }
       } else {
         // Si no hay detalles, crear uno con el monto total
-        insertDetalle.run(pagoId, formaPago || "Transferencia", montoRedondeado);
+        insertDetalle.run(
+          pagoId,
+          formaPago || "Transferencia",
+          montoRedondeado,
+        );
       }
 
       // Actualizar el saldo del cliente (restar el monto del pago)
-      const nuevoSaldo = Math.round((cliente.saldo - montoRedondeado) * 100) / 100;
+      const nuevoSaldo =
+        Math.round((cliente.saldo - montoRedondeado) * 100) / 100;
       actualizarCliente.run(nuevoSaldo, clienteId);
 
       // Actualizar el saldo pendiente del documento si existe
@@ -160,7 +184,8 @@ router.post("/", (req, res) => {
         if (documento) {
           const nuevoSaldoPendiente = Math.max(
             0,
-            Math.round((documento.saldoPendiente - montoRedondeado) * 100) / 100
+            Math.round((documento.saldoPendiente - montoRedondeado) * 100) /
+              100,
           );
           actualizarDocumento.run(nuevoSaldoPendiente, validDocumentoId);
         }
@@ -187,10 +212,14 @@ router.post("/", (req, res) => {
       .get(pagoId);
 
     const detalles = db
-      .prepare(`SELECT id, formaPago, monto FROM pagos_detalle WHERE pagoId = ?`)
+      .prepare(
+        `SELECT id, formaPago, monto FROM pagos_detalle WHERE pagoId = ?`,
+      )
       .all(pagoId);
 
-    res.status(201).json({ success: true, data: { ...nuevoPago, detallesPago: detalles } });
+    res
+      .status(201)
+      .json({ success: true, data: { ...nuevoPago, detallesPago: detalles } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

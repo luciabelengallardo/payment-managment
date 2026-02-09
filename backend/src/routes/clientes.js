@@ -1,6 +1,7 @@
 import express from "express";
-import db from "../db-adapter.js";
+import dbPromise from "../db.js";
 
+const db = await dbPromise;
 const router = express.Router();
 
 // GET - Obtener todos los clientes
@@ -161,7 +162,8 @@ router.put("/:id", (req, res) => {
     `);
 
     // Redondear el saldo si se proporciona
-    const saldoRedondeado = saldo !== undefined ? Math.round(parseFloat(saldo) * 100) / 100 : null;
+    const saldoRedondeado =
+      saldo !== undefined ? Math.round(parseFloat(saldo) * 100) / 100 : null;
 
     stmt.run(
       nombre || null,
