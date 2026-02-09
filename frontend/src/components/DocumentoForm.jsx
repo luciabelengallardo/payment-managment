@@ -154,7 +154,7 @@ export default function DocumentoForm({
             disabled={loading}
             className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white py-2 rounded-lg font-medium transition"
           >
-            {loading ? "Guardando..." : "Agregar Documento"}
+            {loading ? "Guardando..." : "Guardar"}
           </button>
           <button
             type="button"

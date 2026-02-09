@@ -336,7 +336,6 @@ export default function Clientes() {
                   }
                   className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg transition flex items-center justify-center gap-2 text-sm md:text-base"
                 >
-                  <DollarSign className="w-5 h-5" />
                   Ver Pagos
                 </button>
                 <button

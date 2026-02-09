@@ -222,6 +222,7 @@ export default function Dashboard() {
               type="date"
               value={filtroFechaInicio}
               onChange={(e) => setFiltroFechaInicio(e.target.value)}
+              onClick={(e) => e.target.showPicker?.()}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base"
             />
           </div>
@@ -233,6 +234,7 @@ export default function Dashboard() {
               type="date"
               value={filtroFechaFin}
               onChange={(e) => setFiltroFechaFin(e.target.value)}
+              onClick={(e) => e.target.showPicker?.()}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-base"
             />
           </div>
