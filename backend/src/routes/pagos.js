@@ -4,9 +4,9 @@ import db from "../db.js";
 const router = express.Router();
 
 // GET - Obtener todos los pagos
-router.get("/", (req, res) => {
+router.get("/", async (req, res) => {
   try {
-    const pagos = db
+    const pagos = await db
       .prepare(
         `
       SELECT p.id, p.monto, p.formaPago, p.descripcion, p.fecha, p.documentoId,
@@ -21,14 +21,16 @@ router.get("/", (req, res) => {
       .all();
 
     // Obtener detalles de pago para cada pago
-    const pagosConDetalles = pagos.map((pago) => {
-      const detalles = db
-        .prepare(
-          `SELECT id, formaPago, monto FROM pagos_detalle WHERE pagoId = ?`,
-        )
-        .all(pago.id);
-      return { ...pago, detallesPago: detalles };
-    });
+    const pagosConDetalles = await Promise.all(
+      pagos.map(async (pago) => {
+        const detalles = await db
+          .prepare(
+            `SELECT id, formaPago, monto FROM pagos_detalle WHERE pagoId = ?`,
+          )
+          .all(pago.id);
+        return { ...pago, detallesPago: detalles };
+      }),
+    );
 
     res.json({ success: true, data: pagosConDetalles });
   } catch (error) {
@@ -37,9 +39,9 @@ router.get("/", (req, res) => {
 });
 
 // GET - Obtener pago por ID
-router.get("/:id", (req, res) => {
+router.get("/:id", async (req, res) => {
   try {
-    const pago = db
+    const pago = await db
       .prepare(
         `
       SELECT p.id, p.monto, p.formaPago, p.descripcion, p.fecha, p.documentoId,
@@ -59,7 +61,7 @@ router.get("/:id", (req, res) => {
         .json({ success: false, message: "Pago no encontrado" });
 
     // Obtener detalles de pago
-    const detalles = db
+    const detalles = await db
       .prepare(
         `SELECT id, formaPago, monto FROM pagos_detalle WHERE pagoId = ?`,
       )
@@ -72,7 +74,7 @@ router.get("/:id", (req, res) => {
 });
 
 // POST - Crear nuevo pago
-router.post("/", (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const {
       clienteId,
@@ -91,7 +93,7 @@ router.post("/", (req, res) => {
     }
 
     // Verificar que el cliente existe
-    const cliente = db
+    const cliente = await db
       .prepare("SELECT * FROM clientes WHERE id = ?")
       .get(clienteId);
     if (!cliente) {
@@ -103,7 +105,7 @@ router.post("/", (req, res) => {
     // Verificar que el documento existe si se proporciona
     let validDocumentoId = null;
     if (documentoId) {
-      const documento = db
+      const documento = await db
         .prepare("SELECT * FROM documentos WHERE id = ?")
         .get(documentoId);
       if (!documento) {
@@ -114,89 +116,75 @@ router.post("/", (req, res) => {
       validDocumentoId = documentoId;
     }
 
-    // Iniciar transacción
+    // Redondear montos a 2 decimales para evitar problemas de precisión
+    const montoRedondeado = Math.round(parseFloat(monto) * 100) / 100;
+
+    // Insertar pago principal
     const insertPago = db.prepare(`
       INSERT INTO pagos (clienteId, documentoId, monto, formaPago, fecha, descripcion)
       VALUES (?, ?, ?, ?, ?, ?)
     `);
 
+    const result = await insertPago.run(
+      clienteId,
+      validDocumentoId,
+      montoRedondeado,
+      formaPago || "Transferencia",
+      fecha || new Date().toISOString().split("T")[0],
+      descripcion || "",
+    );
+
+    const pagoId = result.lastInsertRowid;
+
+    // Insertar detalles de pago
     const insertDetalle = db.prepare(`
       INSERT INTO pagos_detalle (pagoId, formaPago, monto)
       VALUES (?, ?, ?)
     `);
 
-    const actualizarCliente = db.prepare(
-      "UPDATE clientes SET saldo = ? WHERE id = ?",
-    );
-    const actualizarDocumento = db.prepare(
-      "UPDATE documentos SET saldoPendiente = ? WHERE id = ?",
-    );
-
-    // Redondear montos a 2 decimales para evitar problemas de precisión
-    const montoRedondeado = Math.round(parseFloat(monto) * 100) / 100;
-
-    // Ejecutar en transacción
-    const transaction = db.transaction(() => {
-      // Insertar pago principal
-      const result = insertPago.run(
-        clienteId,
-        validDocumentoId,
-        montoRedondeado,
+    if (
+      detallesPago &&
+      Array.isArray(detallesPago) &&
+      detallesPago.length > 0
+    ) {
+      for (const detalle of detallesPago) {
+        const montoDetalleRedondeado =
+          Math.round(parseFloat(detalle.monto) * 100) / 100;
+        await insertDetalle.run(pagoId, detalle.formaPago, montoDetalleRedondeado);
+      }
+    } else {
+      // Si no hay detalles, crear uno con el monto total
+      await insertDetalle.run(
+        pagoId,
         formaPago || "Transferencia",
-        fecha || new Date().toISOString().split("T")[0],
-        descripcion || "",
+        montoRedondeado,
       );
+    }
 
-      const pagoId = result.lastInsertRowid;
+    // Actualizar el saldo del cliente (restar el monto del pago)
+    const nuevoSaldo =
+      Math.round((cliente.saldo - montoRedondeado) * 100) / 100;
+    await db.prepare("UPDATE clientes SET saldo = ? WHERE id = ?")
+      .run(nuevoSaldo, clienteId);
 
-      // Insertar detalles de pago
-      if (
-        detallesPago &&
-        Array.isArray(detallesPago) &&
-        detallesPago.length > 0
-      ) {
-        for (const detalle of detallesPago) {
-          const montoDetalleRedondeado =
-            Math.round(parseFloat(detalle.monto) * 100) / 100;
-          insertDetalle.run(pagoId, detalle.formaPago, montoDetalleRedondeado);
-        }
-      } else {
-        // Si no hay detalles, crear uno con el monto total
-        insertDetalle.run(
-          pagoId,
-          formaPago || "Transferencia",
-          montoRedondeado,
+    // Actualizar el saldo pendiente del documento si existe
+    if (validDocumentoId) {
+      const documento = await db
+        .prepare("SELECT saldoPendiente FROM documentos WHERE id = ?")
+        .get(validDocumentoId);
+
+      if (documento) {
+        const nuevoSaldoPendiente = Math.max(
+          0,
+          Math.round((documento.saldoPendiente - montoRedondeado) * 100) / 100,
         );
+        await db.prepare("UPDATE documentos SET saldoPendiente = ? WHERE id = ?")
+          .run(nuevoSaldoPendiente, validDocumentoId);
       }
-
-      // Actualizar el saldo del cliente (restar el monto del pago)
-      const nuevoSaldo =
-        Math.round((cliente.saldo - montoRedondeado) * 100) / 100;
-      actualizarCliente.run(nuevoSaldo, clienteId);
-
-      // Actualizar el saldo pendiente del documento si existe
-      if (validDocumentoId) {
-        const documento = db
-          .prepare("SELECT saldoPendiente FROM documentos WHERE id = ?")
-          .get(validDocumentoId);
-
-        if (documento) {
-          const nuevoSaldoPendiente = Math.max(
-            0,
-            Math.round((documento.saldoPendiente - montoRedondeado) * 100) /
-              100,
-          );
-          actualizarDocumento.run(nuevoSaldoPendiente, validDocumentoId);
-        }
-      }
-
-      return pagoId;
-    });
-
-    const pagoId = transaction();
+    }
 
     // Obtener el pago creado con sus detalles
-    const nuevoPago = db
+    const nuevoPago = await db
       .prepare(
         `
       SELECT p.id, p.monto, p.formaPago, p.descripcion, p.fecha, p.documentoId,
@@ -210,7 +198,7 @@ router.post("/", (req, res) => {
       )
       .get(pagoId);
 
-    const detalles = db
+    const detalles = await db
       .prepare(
         `SELECT id, formaPago, monto FROM pagos_detalle WHERE pagoId = ?`,
       )
@@ -225,14 +213,14 @@ router.post("/", (req, res) => {
 });
 
 // PUT - Actualizar pago
-router.put("/:id", (req, res) => {
+router.put("/:id", async (req, res) => {
   try {
     const { monto, formaPago, fecha, descripcion, documentoId } = req.body;
 
     // Verificar que el documento existe si se proporciona
     let validDocumentoId = documentoId || null;
     if (documentoId) {
-      const documento = db
+      const documento = await db
         .prepare("SELECT * FROM documentos WHERE id = ?")
         .get(documentoId);
       if (!documento) {
@@ -252,7 +240,7 @@ router.put("/:id", (req, res) => {
       WHERE id = ?
     `);
 
-    stmt.run(
+    await stmt.run(
       monto || null,
       formaPago || null,
       fecha || null,
@@ -261,7 +249,7 @@ router.put("/:id", (req, res) => {
       req.params.id,
     );
 
-    const pagoActualizado = db
+    const pagoActualizado = await db
       .prepare(
         `
       SELECT p.id, p.monto, p.formaPago, p.descripcion, p.fecha, p.documentoId,
@@ -287,9 +275,9 @@ router.put("/:id", (req, res) => {
 });
 
 // DELETE - Eliminar pago
-router.delete("/:id", (req, res) => {
+router.delete("/:id", async (req, res) => {
   try {
-    const pago = db
+    const pago = await db
       .prepare("SELECT * FROM pagos WHERE id = ?")
       .get(req.params.id);
     if (!pago)
@@ -298,16 +286,16 @@ router.delete("/:id", (req, res) => {
         .json({ success: false, message: "Pago no encontrado" });
 
     // Revertir el saldo del cliente (sumar el monto al reversar el pago)
-    const cliente = db
+    const cliente = await db
       .prepare("SELECT * FROM clientes WHERE id = ?")
       .get(pago.clienteId);
     const nuevoSaldo = cliente.saldo + pago.monto;
-    db.prepare("UPDATE clientes SET saldo = ? WHERE id = ?").run(
+    await db.prepare("UPDATE clientes SET saldo = ? WHERE id = ?").run(
       nuevoSaldo,
       pago.clienteId,
     );
 
-    db.prepare("DELETE FROM pagos WHERE id = ?").run(req.params.id);
+    await db.prepare("DELETE FROM pagos WHERE id = ?").run(req.params.id);
     res.json({ success: true, message: "Pago eliminado correctamente" });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
