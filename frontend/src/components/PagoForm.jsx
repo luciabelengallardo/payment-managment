@@ -23,7 +23,7 @@ export default function PagoForm({
   const [searchTerm, setSearchTerm] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const [detallesPago, setDetallesPago] = useState([
-    { formaPago: "Transferencia", monto: "" },
+    { formaPago: "Efectivo", monto: "" },
   ]);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmModalMessage, setConfirmModalMessage] = useState("");
