@@ -23,7 +23,8 @@ export default function DocumentoForm({
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === "monto" ? parseFloat(value) || "" : value,
+      [name]:
+        name === "monto" ? (value === "" ? "" : parseFloat(value)) : value,
     }));
   };
 
@@ -35,6 +36,9 @@ export default function DocumentoForm({
       return;
     }
 
+    // Redondear el monto a 2 decimales
+    const montoRedondeado = Math.round(parseFloat(formData.monto) * 100) / 100;
+
     setLoading(true);
     try {
       const response = await axios.post(`${API_URL}/documentos`, {
@@ -42,7 +46,7 @@ export default function DocumentoForm({
         tipo: formData.tipo,
         numero: formData.numero,
         empresa: clienteEmpresa,
-        monto: formData.monto,
+        monto: montoRedondeado,
         fecha: formData.fecha,
       });
 
