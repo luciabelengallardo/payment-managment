@@ -1,5 +1,5 @@
 node_modules/
 .env
-payment-manager.db
+*.db
 *.log
 .DS_Store

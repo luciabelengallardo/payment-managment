@@ -1,14 +1,17 @@
 import express from "express";
 import db from "../db.js";
+import { filterByTenant, addTenantToData } from "../middleware/tenant.js";
+import { authMiddleware } from "../middleware/auth.js";
 
 const router = express.Router();
 
-// GET - Obtener todos los clientes
+router.use(authMiddleware);
+router.use(filterByTenant);
+
 router.get("/", async (req, res) => {
   try {
-    const clientes = await db
-      .prepare("SELECT * FROM clientes ORDER BY createdAt DESC")
-      .all();
+    const query = `SELECT * FROM clientes WHERE tenant = '${req.userTenant}' ORDER BY createdAt DESC`;
+    const clientes = await db.prepare(query).all();
     res.json({ success: true, data: clientes });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -18,9 +21,8 @@ router.get("/", async (req, res) => {
 // GET - Obtener cliente por ID
 router.get("/:id", async (req, res) => {
   try {
-    const cliente = await db
-      .prepare("SELECT * FROM clientes WHERE id = ?")
-      .get(req.params.id);
+    const query = `SELECT * FROM clientes WHERE id = ? AND tenant = '${req.userTenant}'`;
+    const cliente = await db.prepare(query).get(req.params.id);
     if (!cliente)
       return res
         .status(404)
@@ -46,10 +48,11 @@ router.post("/", async (req, res) => {
     const nombreNormalizado = nombre.trim();
     const empresaNormalizada = empresa.trim();
 
-    // Validación de duplicado (nombre + empresa)
+    let duplicadoQuery =
+      "SELECT id FROM clientes WHERE nombre = ? AND empresa = ? AND tenant = ?";
     const duplicado = await db
-      .prepare("SELECT id FROM clientes WHERE nombre = ? AND empresa = ?")
-      .get(nombreNormalizado, empresaNormalizada);
+      .prepare(duplicadoQuery)
+      .get(nombreNormalizado, empresaNormalizada, req.userTenant);
 
     if (duplicado) {
       return res.status(400).json({
@@ -58,13 +61,16 @@ router.post("/", async (req, res) => {
       });
     }
 
-    // Verificar si ya existe un documento con el mismo tipo y número
     if (numeroDocumento && numeroDocumento.trim && numeroDocumento.trim()) {
+      const docQuery =
+        "SELECT * FROM clientes WHERE tipoDocumento = ? AND numeroDocumento = ? AND tenant = ?";
       const documentoExistente = await db
-        .prepare(
-          "SELECT * FROM clientes WHERE tipoDocumento = ? AND numeroDocumento = ?",
-        )
-        .get(tipoDocumento || "Factura", numeroDocumento.trim());
+        .prepare(docQuery)
+        .get(
+          tipoDocumento || "Factura",
+          numeroDocumento.trim(),
+          req.userTenant,
+        );
 
       if (documentoExistente) {
         return res.status(400).json({
@@ -75,8 +81,8 @@ router.post("/", async (req, res) => {
     }
 
     const stmt = db.prepare(`
-      INSERT INTO clientes (nombre, empresa, tipoDocumento, numeroDocumento, saldo, fecha)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO clientes (nombre, empresa, tipoDocumento, numeroDocumento, saldo, fecha, tenant)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
 
     // Redondear el saldo a 2 decimales
@@ -89,6 +95,7 @@ router.post("/", async (req, res) => {
       numeroDocumento ? numeroDocumento.trim() : "",
       saldoRedondeado,
       fecha || null,
+      req.userTenant,
     );
 
     const nuevoCliente = await db
@@ -113,16 +120,21 @@ router.put("/:id", async (req, res) => {
     const { nombre, empresa, tipoDocumento, numeroDocumento, saldo, fecha } =
       req.body;
 
-    // Validación de duplicado (nombre + empresa) excluyendo el mismo id
+    // Validación de duplicado (nombre + empresa) excluyendo el mismo id y dentro del mismo tenant
     if (nombre && empresa) {
       const nombreNormalizado = nombre.trim();
       const empresaNormalizada = empresa.trim();
 
+      let duplicadoQuery =
+        "SELECT id FROM clientes WHERE nombre = ? AND empresa = ? AND id != ? AND tenant = ?";
       const duplicado = await db
-        .prepare(
-          "SELECT id FROM clientes WHERE nombre = ? AND empresa = ? AND id != ?",
-        )
-        .get(nombreNormalizado, empresaNormalizada, req.params.id);
+        .prepare(duplicadoQuery)
+        .get(
+          nombreNormalizado,
+          empresaNormalizada,
+          req.params.id,
+          req.userTenant,
+        );
 
       if (duplicado) {
         return res.status(400).json({
@@ -132,13 +144,18 @@ router.put("/:id", async (req, res) => {
       }
     }
 
-    // Verificar si ya existe otro documento con el mismo tipo y número
+    // Verificar si ya existe otro documento con el mismo tipo y número dentro del mismo tenant
     if (numeroDocumento && numeroDocumento.trim && numeroDocumento.trim()) {
+      const docQuery =
+        "SELECT * FROM clientes WHERE tipoDocumento = ? AND numeroDocumento = ? AND id != ? AND tenant = ?";
       const documentoExistente = await db
-        .prepare(
-          "SELECT * FROM clientes WHERE tipoDocumento = ? AND numeroDocumento = ? AND id != ?",
-        )
-        .get(tipoDocumento || "Factura", numeroDocumento.trim(), req.params.id);
+        .prepare(docQuery)
+        .get(
+          tipoDocumento || "Factura",
+          numeroDocumento.trim(),
+          req.params.id,
+          req.userTenant,
+        );
 
       if (documentoExistente) {
         return res.status(400).json({
@@ -197,13 +214,43 @@ router.put("/:id", async (req, res) => {
 // DELETE - Eliminar cliente
 router.delete("/:id", async (req, res) => {
   try {
-    const stmt = db.prepare("DELETE FROM clientes WHERE id = ?");
-    const result = await stmt.run(req.params.id);
+    // Verificar si el cliente existe
+    const clienteQuery = `SELECT * FROM clientes WHERE id = ? AND tenant = '${req.userTenant}'`;
+    const cliente = await db.prepare(clienteQuery).get(req.params.id);
 
-    if (result.changes === 0)
+    if (!cliente) {
       return res
         .status(404)
         .json({ success: false, message: "Cliente no encontrado" });
+    }
+
+    // Verificar si tiene documentos asociados
+    const documentos = await db
+      .prepare("SELECT COUNT(*) as count FROM documentos WHERE clienteId = ?")
+      .get(req.params.id);
+
+    if (documentos.count > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `No se puede eliminar el cliente porque tiene ${documentos.count} documento(s) asociado(s). Elimina primero los documentos.`,
+      });
+    }
+
+    // Verificar si tiene pagos asociados
+    const pagos = await db
+      .prepare("SELECT COUNT(*) as count FROM pagos WHERE clienteId = ?")
+      .get(req.params.id);
+
+    if (pagos.count > 0) {
+      return res.status(400).json({
+        success: false,
+        message: `No se puede eliminar el cliente porque tiene ${pagos.count} pago(s) asociado(s). Elimina primero los pagos.`,
+      });
+    }
+
+    // Si no tiene documentos ni pagos, eliminar el cliente
+    const deleteQuery = `DELETE FROM clientes WHERE id = ? AND tenant = '${req.userTenant}'`;
+    await db.prepare(deleteQuery).run(req.params.id);
 
     res.json({ success: true, message: "Cliente eliminado correctamente" });
   } catch (error) {

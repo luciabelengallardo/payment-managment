@@ -3,15 +3,22 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/index.js",
-    "start": "node src/index.js"
+    "dev": "nodemon src/index.js",
+    "start": "node src/index.js",
+    "backup": "node backup-production.js",
+    "verify": "node verify-data-integrity.js",
+    "clean-demo": "node clean-db.js",
+    "create-demo": "node create-demo-data.js",
+    "create-users": "node create-admin.js"
   },
   "dependencies": {
     "@libsql/client": "^0.17.0",
+    "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.6.2",
     "cors": "^2.8.5",
     "dotenv": "^16.0.3",
-    "express": "^4.18.2"
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.3"
   },
   "devDependencies": {
     "nodemon": "^2.0.20"

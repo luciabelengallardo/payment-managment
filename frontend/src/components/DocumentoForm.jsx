@@ -1,8 +1,22 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
-import axios from "axios";
+import axios from "../utils/axios";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+
+const formatearMonto = (valor) => {
+  if (!valor) return "";
+  const numero =
+    typeof valor === "string"
+      ? parseFloat(valor.replace(/[^0-9,-]/g, "").replace(",", "."))
+      : valor;
+  if (isNaN(numero)) return "";
+  return new Intl.NumberFormat("es-AR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(numero);
+};
+
 export default function DocumentoForm({
   clienteId,
   clienteNombre,
@@ -17,6 +31,7 @@ export default function DocumentoForm({
     monto: "",
     fecha: new Date().toISOString().split("T")[0],
   });
+  const [montoFormateado, setMontoFormateado] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
@@ -36,7 +51,6 @@ export default function DocumentoForm({
       return;
     }
 
-    // Redondear el monto a 2 decimales
     const montoRedondeado = Math.round(parseFloat(formData.monto) * 100) / 100;
 
     setLoading(true);
@@ -59,6 +73,7 @@ export default function DocumentoForm({
         monto: "",
         fecha: new Date().toISOString().split("T")[0],
       });
+      setMontoFormateado("");
     } catch (error) {
       const message =
         error.response?.data?.message || "Error al agregar documento";
@@ -124,13 +139,24 @@ export default function DocumentoForm({
             Monto *
           </label>
           <input
-            type="number"
+            type="text"
             name="monto"
-            value={formData.monto}
-            onChange={handleChange}
+            value={montoFormateado}
+            onChange={(e) => {
+              const valor = e.target.value.replace(/[^0-9.,\s]/g, "");
+              setMontoFormateado(valor);
+              const numero = valor.replace(/[^0-9,]/g, "").replace(",", ".");
+              const montoNumerico = numero ? parseFloat(numero) : "";
+              setFormData((prev) => ({ ...prev, monto: montoNumerico }));
+            }}
+            onBlur={() => {
+              if (formData.monto) {
+                const formateado = formatearMonto(formData.monto);
+                setMontoFormateado(formateado);
+              }
+            }}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-base"
-            placeholder="0.00"
-            step="0.01"
+            placeholder="0,00"
           />
         </div>
 
@@ -152,14 +178,25 @@ export default function DocumentoForm({
           <button
             type="submit"
             disabled={loading}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white py-2 rounded-lg font-medium transition"
+            className="flex-1 disabled:opacity-70 text-white py-2 rounded-lg font-medium transition flex items-center justify-center gap-2"
+            style={{ backgroundColor: loading ? "#6B7280" : "#1F3A5F" }}
+            onMouseEnter={(e) =>
+              !loading && (e.currentTarget.style.backgroundColor = "#3E6BA8")
+            }
+            onMouseLeave={(e) =>
+              !loading && (e.currentTarget.style.backgroundColor = "#1F3A5F")
+            }
           >
+            {loading && (
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+            )}
             {loading ? "Guardando..." : "Guardar"}
           </button>
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 bg-gray-400 hover:bg-gray-500 text-white py-2 rounded-lg font-medium transition"
+            disabled={loading}
+            className="flex-1 bg-gray-400 hover:bg-gray-500 text-white py-2 rounded-lg font-medium transition disabled:opacity-50"
           >
             Cancelar
           </button>

@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import pagoRoutes from "./routes/pagos.js";
 import clienteRoutes from "./routes/clientes.js";
 import documentoRoutes from "./routes/documentos.js";
+import authRoutes from "./routes/auth.js";
 import db from "./db.js";
 
 dotenv.config();
@@ -11,17 +12,19 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 8000;
 
-// Configuración CORS para producción y desarrollo
 const allowedOrigins = [
   "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:5175",
+  "http://localhost:5176",
+  "http://localhost:5177",
   "http://localhost:3000",
-  process.env.FRONTEND_URL, // URL de Vercel que configuraremos
+  process.env.FRONTEND_URL,
 ];
 
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Permitir requests sin origin (como mobile apps o curl)
       if (!origin) return callback(null, true);
 
       if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
@@ -36,15 +39,13 @@ app.use(
   }),
 );
 
-// Middleware
 app.use(express.json());
 
-// Routes
+app.use("/api/auth", authRoutes);
 app.use("/api/pagos", pagoRoutes);
 app.use("/api/clientes", clienteRoutes);
 app.use("/api/documentos", documentoRoutes);
 
-// Health check
 app.get("/", (req, res) => {
   res.json({
     status: "OK",
@@ -57,6 +58,38 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "OK", message: "Backend funcionando correctamente" });
 });
 
-app.listen(PORT, "0.0.0.0", () => {
+const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`✅ Backend corriendo en puerto ${PORT}`);
 });
+
+// Manejo de errores del servidor
+server.on("error", (error) => {
+  if (error.code === "EADDRINUSE") {
+    console.error(`❌ Error: El puerto ${PORT} ya está en uso`);
+    console.log("💡 Solución: Ejecuta este comando para liberar el puerto:");
+    console.log(`   lsof -ti:${PORT} | xargs kill -9`);
+    process.exit(1);
+  } else {
+    console.error("❌ Error del servidor:", error);
+    process.exit(1);
+  }
+});
+
+// Cierre graceful del servidor
+const gracefulShutdown = () => {
+  console.log("\n🔄 Cerrando servidor...");
+  server.close(() => {
+    console.log("✅ Servidor cerrado correctamente");
+    process.exit(0);
+  });
+
+  // Forzar cierre después de 10 segundos
+  setTimeout(() => {
+    console.error("❌ Forzando cierre del servidor");
+    process.exit(1);
+  }, 10000);
+};
+
+// Escuchar señales de terminación
+process.on("SIGTERM", gracefulShutdown);
+process.on("SIGINT", gracefulShutdown);

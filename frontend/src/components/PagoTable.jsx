@@ -1,6 +1,100 @@
 import { Trash2 } from "lucide-react";
+import { useState, useEffect } from "react";
 
 export default function PagoTable({ pagos, onDelete }) {
+  const [tooltipVisible, setTooltipVisible] = useState(null);
+  const [tooltipPosition, setTooltipPosition] = useState({
+    top: 0,
+    left: 0,
+    showBelow: false,
+  });
+
+  const showTooltip = (e, id) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+
+    const spaceAbove = rect.top;
+    const spaceBelow = viewportHeight - rect.bottom;
+    const showBelow = spaceAbove < 300 || spaceBelow > spaceAbove;
+
+    let leftPosition = rect.left;
+    if (viewportWidth < 1024) {
+      leftPosition = Math.max(8, Math.min(rect.left, viewportWidth - 320));
+    }
+
+    setTooltipPosition({
+      top: showBelow ? rect.bottom : rect.top,
+      left: leftPosition,
+      showBelow,
+    });
+    setTooltipVisible(id);
+  };
+
+  const toggleTooltip = (e, id) => {
+    e.stopPropagation();
+    if (tooltipVisible === id) {
+      setTooltipVisible(null);
+    } else {
+      showTooltip(e, id);
+    }
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        tooltipVisible &&
+        !event.target.closest(".tooltip-trigger") &&
+        !event.target.closest(".tooltip-content")
+      ) {
+        setTooltipVisible(null);
+      }
+    };
+
+    const handleScroll = () => {
+      if (tooltipVisible) {
+        setTooltipVisible(null);
+      }
+    };
+
+    document.addEventListener("click", handleClickOutside);
+    window.addEventListener("scroll", handleScroll, true);
+
+    return () => {
+      document.removeEventListener("click", handleClickOutside);
+      window.removeEventListener("scroll", handleScroll, true);
+    };
+  }, [tooltipVisible]);
+
+  const agruparDetallesPago = (detalles) => {
+    if (!detalles || detalles.length === 0) return [];
+
+    const grupos = new Map();
+
+    detalles.forEach((detalle) => {
+      let clave = detalle.formaPago;
+
+      if (detalle.formaPago === "Cheque" || detalle.formaPago === "E-Cheq") {
+        clave += `_${detalle.numeroCheque || ""}_${detalle.fechaCobro || ""}_${detalle.banco || ""}`;
+      } else if (
+        detalle.formaPago === "Transferencia" ||
+        detalle.formaPago === "Deposito"
+      ) {
+        clave += `_${detalle.fecha || ""}_${detalle.banco || ""}`;
+      }
+
+      if (grupos.has(clave)) {
+        const grupo = grupos.get(clave);
+        grupo.monto =
+          Math.round((grupo.monto + (detalle.monto || 0)) * 100) / 100;
+      } else {
+        grupos.set(clave, { ...detalle });
+      }
+    });
+
+    return Array.from(grupos.values());
+  };
+
   const formatCurrency = (value) => {
     return new Intl.NumberFormat("es-AR", {
       style: "currency",
@@ -18,16 +112,126 @@ export default function PagoTable({ pagos, onDelete }) {
     return `${day}/${month}/${year}`;
   };
 
+  const formatFacturasAplicadas = (pago) => {
+    if (pago.detallesPago && pago.detallesPago.length > 0) {
+      const facturasMap = new Map();
+
+      pago.detallesPago
+        .filter((d) => d.documentoId)
+        .forEach((d) => {
+          const key = d.documentoId;
+          if (!facturasMap.has(key)) {
+            facturasMap.set(key, {
+              id: d.documentoId,
+              tipo: d.documentoTipo || pago.documentoTipo,
+              numero: d.documentoNumero || pago.documentoNumero,
+              monto: 0,
+            });
+          }
+          facturasMap.get(key).monto += d.monto || 0;
+        });
+
+      const facturasUnicas = Array.from(facturasMap.values());
+
+      if (facturasUnicas.length === 0) {
+        if (pago.documentoTipo && pago.documentoNumero) {
+          return `${pago.documentoTipo} ${pago.documentoNumero}`;
+        }
+        return "-";
+      }
+
+      if (facturasUnicas.length === 1) {
+        return `${facturasUnicas[0].tipo} ${facturasUnicas[0].numero}`;
+      }
+
+      const primera = facturasUnicas[0];
+      const resto = facturasUnicas.length - 1;
+      const tooltipId = `tooltip-facturas-${pago.id}`;
+
+      return (
+        <div className="relative inline-block">
+          <div
+            className="cursor-pointer inline-block tooltip-trigger"
+            onClick={(e) => toggleTooltip(e, tooltipId)}
+            onMouseEnter={(e) =>
+              window.innerWidth >= 1024 && showTooltip(e, tooltipId)
+            }
+            onMouseLeave={() =>
+              window.innerWidth >= 1024 && setTooltipVisible(null)
+            }
+          >
+            {primera.tipo} {primera.numero}
+            <span
+              className="ml-1 text-xs px-1.5 py-0.5 rounded-full font-semibold"
+              style={{ backgroundColor: "#e3edf7", color: "#1F3A5F" }}
+            >
+              +{resto}
+            </span>
+          </div>
+          {tooltipVisible === tooltipId && (
+            <div
+              className="fixed z-[9999] tooltip-content"
+              style={{
+                top: tooltipPosition.showBelow
+                  ? tooltipPosition.top + 8
+                  : tooltipPosition.top - 8,
+                left: tooltipPosition.left,
+                transform: tooltipPosition.showBelow
+                  ? "translateY(0)"
+                  : "translateY(-100%)",
+                maxHeight: tooltipPosition.showBelow
+                  ? "calc(100vh - " + (tooltipPosition.top + 16) + "px)"
+                  : "calc(" + (tooltipPosition.top - 16) + "px)",
+              }}
+            >
+              <div
+                className="text-white text-xs rounded-xl py-3 px-4 shadow-2xl border-2 max-w-[calc(100vw-16px)] lg:max-w-md overflow-y-auto"
+                style={{
+                  background:
+                    "linear-gradient(to bottom right, #1F3A5F, #3E6BA8)",
+                  borderColor: "#3E6BA8",
+                  maxHeight: "inherit",
+                }}
+              >
+                <div className="font-bold mb-2 text-sm text-blue-100 border-b border-blue-400 pb-1 whitespace-nowrap">
+                  📋 Facturas Aplicadas
+                </div>
+                <div className="space-y-1.5 mt-2">
+                  {facturasUnicas.map((f, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between gap-4 bg-white/10 rounded-lg px-2 py-1.5 backdrop-blur-sm whitespace-nowrap"
+                    >
+                      <span className="font-medium text-white">
+                        {f.tipo} {f.numero}
+                      </span>
+                      <span className="font-bold text-blue-200">
+                        {formatCurrency(f.monto)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Fallback si no hay detalles
+    if (pago.documentoTipo && pago.documentoNumero) {
+      return `${pago.documentoTipo} ${pago.documentoNumero}`;
+    }
+    return "-";
+  };
+
   const totalPagado = pagos.reduce((sum, pago) => sum + (pago.monto || 0), 0);
 
-  // Calcular totales únicos por documento
   const calcularTotales = () => {
     const documentosUnicos = new Map();
 
     pagos.forEach((pago) => {
       if (pago.documentoId) {
-        // Obtener el monto original del documento (antes de pagos)
-        // Necesitamos calcular basándonos en saldoPendiente + pagos realizados
         const key = pago.documentoId;
         if (!documentosUnicos.has(key)) {
           documentosUnicos.set(key, {
@@ -61,8 +265,7 @@ export default function PagoTable({ pagos, onDelete }) {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Vista Mobile - Cards */}
+    <div className="space-y-4" style={{ overflow: "visible" }}>
       <div className="lg:hidden space-y-3">
         {pagos.map((pago) => (
           <div
@@ -79,7 +282,7 @@ export default function PagoTable({ pagos, onDelete }) {
                 </p>
               </div>
               <button
-                onClick={() => onDelete(pago.id)}
+                onClick={() => onDelete(pago)}
                 className="text-red-600 hover:text-red-800 p-1 transition"
                 title="Eliminar pago"
               >
@@ -91,15 +294,13 @@ export default function PagoTable({ pagos, onDelete }) {
               <div className="flex justify-between">
                 <span className="text-gray-600">Documento:</span>
                 <span className="font-medium">
-                  {pago.documentoTipo && pago.documentoNumero
-                    ? `${pago.documentoTipo} ${pago.documentoNumero}`
-                    : "-"}
+                  {formatFacturasAplicadas(pago)}
                 </span>
               </div>
 
               <div className="flex justify-between">
                 <span className="text-gray-600">Monto:</span>
-                <span className="font-bold text-green-600">
+                <span className="font-bold" style={{ color: "#5FB49C" }}>
                   {formatCurrency(pago.monto)}
                 </span>
               </div>
@@ -108,12 +309,56 @@ export default function PagoTable({ pagos, onDelete }) {
                 <span className="text-gray-600">Forma de Pago:</span>
                 <span className="font-medium">
                   {pago.detallesPago && pago.detallesPago.length > 0 ? (
-                    <div className="text-right">
-                      {pago.detallesPago.map((detalle, idx) => (
-                        <div key={idx} className="text-xs">
-                          {detalle.formaPago}: {formatCurrency(detalle.monto)}
-                        </div>
-                      ))}
+                    <div className="text-right space-y-2">
+                      {agruparDetallesPago(pago.detallesPago).map(
+                        (detalle, idx) => (
+                          <div
+                            key={idx}
+                            className="text-xs bg-gray-50 p-2 rounded border border-gray-200"
+                          >
+                            <div className="font-semibold text-gray-900">
+                              {detalle.formaPago}:{" "}
+                              {formatCurrency(detalle.monto)}
+                            </div>
+                            {(detalle.formaPago === "Cheque" ||
+                              detalle.formaPago === "E-Cheq") && (
+                              <div className="mt-1 space-y-0.5 text-gray-600">
+                                {detalle.numeroCheque && (
+                                  <div>N°: {detalle.numeroCheque}</div>
+                                )}
+                                {detalle.fechaCobro && (
+                                  <div>
+                                    Cobro: {formatDate(detalle.fechaCobro)}
+                                  </div>
+                                )}
+                                {detalle.banco && (
+                                  <div>Banco: {detalle.banco}</div>
+                                )}
+                              </div>
+                            )}
+                            {detalle.formaPago === "Transferencia" && (
+                              <div className="mt-1 space-y-0.5 text-gray-600">
+                                {detalle.fecha && (
+                                  <div>Fecha: {formatDate(detalle.fecha)}</div>
+                                )}
+                                {detalle.banco && (
+                                  <div>Banco: {detalle.banco}</div>
+                                )}
+                              </div>
+                            )}
+                            {detalle.formaPago === "Deposito" && (
+                              <div className="mt-1 space-y-0.5 text-gray-600">
+                                {detalle.fecha && (
+                                  <div>Fecha: {formatDate(detalle.fecha)}</div>
+                                )}
+                                {detalle.banco && (
+                                  <div>Banco: {detalle.banco}</div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ),
+                      )}
                     </div>
                   ) : (
                     pago.formaPago
@@ -138,8 +383,13 @@ export default function PagoTable({ pagos, onDelete }) {
           </div>
         ))}
 
-        {/* Total en Mobile */}
-        <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg p-4 border-2 border-green-300 space-y-2">
+        <div
+          className="rounded-lg p-4 border-2 space-y-2"
+          style={{
+            background: "linear-gradient(to right, #e6f4f1, #d4ede7)",
+            borderColor: "#5FB49C",
+          }}
+        >
           <div className="flex justify-between items-center">
             <span className="font-bold text-gray-900">TOTAL PAGADO:</span>
             <span className="font-bold text-green-700 text-xl">
@@ -155,10 +405,9 @@ export default function PagoTable({ pagos, onDelete }) {
         </div>
       </div>
 
-      {/* Vista Desktop - Tabla */}
-      <div className="hidden lg:block bg-white rounded-lg shadow overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+      <div className="hidden lg:block mt-24">
+        <div className="bg-white rounded-lg shadow overflow-x-auto">
+          <table className="w-full text-sm" style={{ position: "relative" }}>
             <thead className="bg-gray-100 border-b">
               <tr>
                 <th className="px-6 py-3 text-left font-semibold text-gray-700">
@@ -180,54 +429,243 @@ export default function PagoTable({ pagos, onDelete }) {
                   Fecha
                 </th>
                 <th className="px-6 py-3 text-left font-semibold text-gray-700">
-                  Descripción
+                  Observación
                 </th>
                 <th className="px-6 py-3 text-center font-semibold text-gray-700">
                   Acciones
                 </th>
               </tr>
             </thead>
-            <tbody>
+            <tbody
+              className="[&_tr]:overflow-visible"
+              style={{ position: "relative", zIndex: 2 }}
+            >
               {pagos.map((pago) => (
-                <tr key={pago.id} className="border-b hover:bg-gray-50">
-                  <td className="px-6 py-4 font-medium">
+                <tr
+                  key={pago.id}
+                  className="border-b hover:bg-gray-50 overflow-visible"
+                >
+                  <td className="px-6 py-5 font-medium">
                     {pago.clienteNombre}
                   </td>
-                  <td className="px-6 py-4">
-                    {pago.documentoTipo && pago.documentoNumero
-                      ? `${pago.documentoTipo} ${pago.documentoNumero}`
-                      : "-"}
+                  <td className="px-6 py-5 relative overflow-visible">
+                    {formatFacturasAplicadas(pago)}
                   </td>
-                  <td className="px-6 py-4">{pago.documentoEmpresa || "-"}</td>
-                  <td className="px-6 py-4 font-semibold text-green-600">
+                  <td className="px-6 py-5">{pago.documentoEmpresa || "-"}</td>
+                  <td
+                    className="px-6 py-5 font-semibold"
+                    style={{ color: "#5FB49C" }}
+                  >
                     {formatCurrency(pago.monto)}
                   </td>
-                  <td className="px-6 py-4">
-                    {pago.detallesPago && pago.detallesPago.length > 0 ? (
-                      <div className="space-y-1">
-                        {pago.detallesPago.map((detalle, idx) => (
-                          <div key={idx} className="text-xs">
-                            <span className="font-medium">
-                              {detalle.formaPago}
-                            </span>
-                            :{" "}
-                            <span className="text-green-600">
-                              {formatCurrency(detalle.monto)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      pago.formaPago
-                    )}
+                  <td className="px-6 py-5 relative overflow-visible">
+                    {pago.detallesPago && pago.detallesPago.length > 0
+                      ? (() => {
+                          const detallesAgrupados = agruparDetallesPago(
+                            pago.detallesPago,
+                          );
+
+                          if (detallesAgrupados.length === 1) {
+                            const detalle = detallesAgrupados[0];
+                            return (
+                              <div className="text-xs bg-gray-50 p-2 rounded border border-gray-200">
+                                <div className="font-semibold">
+                                  <span className="text-gray-900">
+                                    {detalle.formaPago}
+                                  </span>
+                                  :{" "}
+                                  <span style={{ color: "#5FB49C" }}>
+                                    {formatCurrency(detalle.monto)}
+                                  </span>
+                                </div>
+                                {(detalle.formaPago === "Cheque" ||
+                                  detalle.formaPago === "E-Cheq") && (
+                                  <div className="mt-1 space-y-0.5 text-gray-600">
+                                    {detalle.numeroCheque && (
+                                      <div>N°: {detalle.numeroCheque}</div>
+                                    )}
+                                    {detalle.fechaCobro && (
+                                      <div>
+                                        Cobro: {formatDate(detalle.fechaCobro)}
+                                      </div>
+                                    )}
+                                    {detalle.banco && (
+                                      <div>Banco: {detalle.banco}</div>
+                                    )}
+                                  </div>
+                                )}
+                                {detalle.formaPago === "Transferencia" && (
+                                  <div className="mt-1 space-y-0.5 text-gray-600">
+                                    {detalle.fecha && (
+                                      <div>
+                                        Fecha: {formatDate(detalle.fecha)}
+                                      </div>
+                                    )}
+                                    {detalle.banco && (
+                                      <div>Banco: {detalle.banco}</div>
+                                    )}
+                                  </div>
+                                )}
+                                {detalle.formaPago === "Deposito" && (
+                                  <div className="mt-1 space-y-0.5 text-gray-600">
+                                    {detalle.fecha && (
+                                      <div>
+                                        Fecha: {formatDate(detalle.fecha)}
+                                      </div>
+                                    )}
+                                    {detalle.banco && (
+                                      <div>Banco: {detalle.banco}</div>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          }
+
+                          // Múltiples formas de pago - mostrar tooltip
+                          const primera = detallesAgrupados[0];
+                          const resto = detallesAgrupados.length - 1;
+                          const tooltipId = `tooltip-formas-${pago.id}`;
+
+                          return (
+                            <div className="relative inline-block">
+                              <div
+                                className="cursor-pointer inline-block text-xs bg-gray-50 p-2 rounded border border-gray-200 tooltip-trigger"
+                                onClick={(e) => toggleTooltip(e, tooltipId)}
+                                onMouseEnter={(e) =>
+                                  window.innerWidth >= 1024 &&
+                                  showTooltip(e, tooltipId)
+                                }
+                                onMouseLeave={() =>
+                                  window.innerWidth >= 1024 &&
+                                  setTooltipVisible(null)
+                                }
+                              >
+                                <span className="font-semibold text-gray-900">
+                                  {primera.formaPago}
+                                </span>
+                                :{" "}
+                                <span
+                                  className="font-semibold"
+                                  style={{ color: "#5FB49C" }}
+                                >
+                                  {formatCurrency(primera.monto)}
+                                </span>
+                                <span
+                                  className="ml-1.5 text-xs px-1.5 py-0.5 rounded-full font-semibold"
+                                  style={{
+                                    backgroundColor: "#e3edf7",
+                                    color: "#1F3A5F",
+                                  }}
+                                >
+                                  +{resto}
+                                </span>
+                              </div>
+                              {tooltipVisible === tooltipId && (
+                                <div
+                                  className="fixed z-[9999] tooltip-content"
+                                  style={{
+                                    top: tooltipPosition.showBelow
+                                      ? tooltipPosition.top + 8
+                                      : tooltipPosition.top - 8,
+                                    left: tooltipPosition.left,
+                                    transform: tooltipPosition.showBelow
+                                      ? "translateY(0)"
+                                      : "translateY(-100%)",
+                                    maxHeight: tooltipPosition.showBelow
+                                      ? "calc(100vh - " +
+                                        (tooltipPosition.top + 16) +
+                                        "px)"
+                                      : "calc(" +
+                                        (tooltipPosition.top - 16) +
+                                        "px)",
+                                  }}
+                                >
+                                  <div
+                                    className="text-white text-xs rounded-xl py-3 px-4 shadow-2xl border-2 max-w-[calc(100vw-16px)] lg:max-w-md overflow-y-auto"
+                                    style={{
+                                      background:
+                                        "linear-gradient(to bottom right, #1F3A5F, #3E6BA8)",
+                                      borderColor: "#3E6BA8",
+                                      maxHeight: "inherit",
+                                    }}
+                                  >
+                                    <div className="font-bold mb-2 text-sm text-blue-100 border-b border-blue-400 pb-1 whitespace-nowrap">
+                                      💳 Formas de Pago
+                                    </div>
+                                    <div className="space-y-2 mt-2">
+                                      {detallesAgrupados.map((detalle, idx) => (
+                                        <div
+                                          key={idx}
+                                          className="bg-white/10 rounded-lg px-3 py-2 backdrop-blur-sm"
+                                        >
+                                          <div className="flex items-center justify-between gap-3 mb-1 whitespace-nowrap">
+                                            <span className="font-semibold text-white">
+                                              {detalle.formaPago}
+                                            </span>
+                                            <span className="font-bold text-blue-200">
+                                              {formatCurrency(detalle.monto)}
+                                            </span>
+                                          </div>
+                                          {(detalle.formaPago === "Cheque" ||
+                                            detalle.formaPago === "E-Cheq") && (
+                                            <div className="text-xs text-blue-100 space-y-0.5 mt-1">
+                                              {detalle.numeroCheque && (
+                                                <div>
+                                                  N°: {detalle.numeroCheque}
+                                                </div>
+                                              )}
+                                              {detalle.fechaCobro && (
+                                                <div>
+                                                  Cobro:{" "}
+                                                  {formatDate(
+                                                    detalle.fechaCobro,
+                                                  )}
+                                                </div>
+                                              )}
+                                              {detalle.banco && (
+                                                <div>
+                                                  Banco: {detalle.banco}
+                                                </div>
+                                              )}
+                                            </div>
+                                          )}
+                                          {(detalle.formaPago ===
+                                            "Transferencia" ||
+                                            detalle.formaPago ===
+                                              "Deposito") && (
+                                            <div className="text-xs text-blue-100 space-y-0.5 mt-1">
+                                              {detalle.fecha && (
+                                                <div>
+                                                  Fecha:{" "}
+                                                  {formatDate(detalle.fecha)}
+                                                </div>
+                                              )}
+                                              {detalle.banco && (
+                                                <div>
+                                                  Banco: {detalle.banco}
+                                                </div>
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()
+                      : pago.formaPago}
                   </td>
-                  <td className="px-6 py-4">{formatDate(pago.fecha)}</td>
-                  <td className="px-6 py-4 text-gray-600">
+                  <td className="px-6 py-5">{formatDate(pago.fecha)}</td>
+                  <td className="px-6 py-5 text-gray-600">
                     {pago.descripcion || "-"}
                   </td>
-                  <td className="px-6 py-4 flex justify-center gap-2">
+                  <td className="px-6 py-5 flex justify-center gap-2">
                     <button
-                      onClick={() => onDelete(pago.id)}
+                      onClick={() => onDelete(pago)}
                       className="text-red-600 hover:text-red-800 p-1 transition"
                       title="Eliminar pago"
                     >
