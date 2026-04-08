@@ -12,12 +12,6 @@
     "create-demo": "node create-demo-data.js",
     "create-users": "node create-admin.js"
   },
-    "backup": "node backup-production.js",
-    "verify": "node verify-data-integrity.js",
-    "clean-demo": "node clean-db.js",
-    "create-demo": "node create-demo-data.js",
-    "create-users": "node create-admin.js"
-  },
   "dependencies": {
     "@libsql/client": "^0.17.0",
     "bcryptjs": "^3.0.3",
