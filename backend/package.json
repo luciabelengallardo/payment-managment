@@ -5,6 +5,13 @@
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
+    "init-users": "node init-users.js",
+    "backup": "node backup-production.js",
+    "verify": "node verify-data-integrity.js",
+    "clean-demo": "node clean-db.js",
+    "create-demo": "node create-demo-data.js",
+    "create-users": "node create-admin.js"
+  },
     "backup": "node backup-production.js",
     "verify": "node verify-data-integrity.js",
     "clean-demo": "node clean-db.js",

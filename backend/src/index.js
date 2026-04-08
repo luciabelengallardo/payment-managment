@@ -20,16 +20,18 @@ const allowedOrigins = [
   "http://localhost:5177",
   "http://localhost:3000",
   process.env.FRONTEND_URL,
-];
+].filter(Boolean);
 
 app.use(
   cors({
     origin: function (origin, callback) {
+      // Permitir requests sin origin (como Postman, curl, apps móviles)
       if (!origin) return callback(null, true);
 
-      if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
+      if (allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
+        console.log("❌ Origen no permitido:", origin);
         callback(new Error("No permitido por CORS"));
       }
     },
