@@ -77,15 +77,19 @@ export default function DocumentoTable({
     const totalPagado = documentos.reduce((sum, doc) => {
       return sum + calcularTotalPagado(doc.id);
     }, 0);
-    const saldoPendiente = documentos.reduce(
-      (sum, doc) => sum + Math.max(0, doc.saldoPendiente || 0),
-      0,
-    );
-    const saldoAFavor = documentos.reduce(
-      (sum, doc) =>
-        sum + (doc.saldoPendiente < 0 ? Math.abs(doc.saldoPendiente) : 0),
-      0,
-    );
+    
+    // Calcular saldo pendiente real basado en monto - pagos
+    const saldoPendiente = documentos.reduce((sum, doc) => {
+      const pagadoDoc = calcularTotalPagado(doc.id);
+      const saldo = doc.monto - pagadoDoc;
+      return sum + Math.max(0, saldo);
+    }, 0);
+    
+    const saldoAFavor = documentos.reduce((sum, doc) => {
+      const pagadoDoc = calcularTotalPagado(doc.id);
+      const saldo = doc.monto - pagadoDoc;
+      return sum + (saldo < 0 ? Math.abs(saldo) : 0);
+    }, 0);
 
     return { montoTotal, totalPagado, saldoPendiente, saldoAFavor };
   };
@@ -131,6 +135,7 @@ export default function DocumentoTable({
       <div className="lg:hidden space-y-3">
         {documentos.map((doc) => {
           const totalPagado = calcularTotalPagado(doc.id);
+          const saldoPendiente = doc.monto - totalPagado;
           return (
             <div
               key={doc.id}
@@ -174,7 +179,7 @@ export default function DocumentoTable({
 
                 <div className="flex justify-between pt-2 border-t border-gray-200">
                   <span className="text-gray-600">
-                    {doc.saldoPendiente < 0
+                    {saldoPendiente < 0
                       ? "Saldo a Favor:"
                       : "Saldo Pendiente:"}
                   </span>
@@ -182,19 +187,19 @@ export default function DocumentoTable({
                     className="font-bold"
                     style={{
                       color:
-                        doc.saldoPendiente < 0
+                        saldoPendiente < 0
                           ? "#5FB49C"
-                          : doc.saldoPendiente > 0
+                          : saldoPendiente > 0
                             ? "#E76F51"
                             : "#6B7280",
                     }}
                   >
-                    {doc.saldoPendiente < 0
-                      ? formatCurrency(Math.abs(doc.saldoPendiente))
-                      : formatCurrency(doc.saldoPendiente)}
+                    {saldoPendiente < 0
+                      ? formatCurrency(Math.abs(saldoPendiente))
+                      : formatCurrency(saldoPendiente)}
                   </span>
                 </div>
-                {doc.saldoPendiente < 0 && (
+                {saldoPendiente < 0 && (
                   <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-xs text-green-700">
                     ✓ Factura con crédito - Usar en próximos pagos
                   </div>
@@ -276,6 +281,7 @@ export default function DocumentoTable({
             <tbody>
               {documentos.map((doc) => {
                 const totalPagado = calcularTotalPagado(doc.id);
+                const saldoPendiente = doc.monto - totalPagado;
                 return (
                   <tr key={doc.id} className="border-b hover:bg-gray-50">
                     <td className="px-6 py-4 font-medium text-gray-900">
@@ -304,18 +310,18 @@ export default function DocumentoTable({
                           className="font-semibold"
                           style={{
                             color:
-                              doc.saldoPendiente < 0
+                              saldoPendiente < 0
                                 ? "#5FB49C"
-                                : doc.saldoPendiente > 0
+                                : saldoPendiente > 0
                                   ? "#E76F51"
                                   : "#6B7280",
                           }}
                         >
-                          {doc.saldoPendiente < 0
-                            ? formatCurrency(Math.abs(doc.saldoPendiente))
-                            : formatCurrency(doc.saldoPendiente)}
+                          {saldoPendiente < 0
+                            ? formatCurrency(Math.abs(saldoPendiente))
+                            : formatCurrency(saldoPendiente)}
                         </span>
-                        {doc.saldoPendiente < 0 && (
+                        {saldoPendiente < 0 && (
                           <span
                             className="text-xs font-medium"
                             style={{ color: "#5FB49C" }}
