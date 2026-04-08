@@ -25,14 +25,12 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Permitir requests sin origin (como Postman, curl, apps móviles)
       if (!origin) return callback(null, true);
 
       if (allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
-        console.log("❌ Origen no permitido:", origin);
-        callback(new Error("No permitido por CORS"));
+        callback(new Error("Origen no permitido"));
       }
     },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],

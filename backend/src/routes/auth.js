@@ -5,7 +5,7 @@ import db from "../db.js";
 
 const router = express.Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || "payment-manager-secret-key-2026";
+const JWT_SECRET = process.env.JWT_SECRET || "payment-manager-secret-2026";
 const JWT_EXPIRES_IN = "24h";
 
 // Login

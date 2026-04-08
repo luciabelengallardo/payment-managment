@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import axios from "../utils/axios";
+import ConfirmModal from "./ConfirmModal";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
@@ -29,6 +30,8 @@ export default function PagoFormMulti({
   const [formasColapsadas, setFormasColapsadas] = useState(new Set());
   const [validationErrors, setValidationErrors] = useState({});
   const [showBorradorRecuperacion, setShowBorradorRecuperacion] =
+    useState(false);
+  const [showConfirmCobrosPasados, setShowConfirmCobrosPasados] =
     useState(false);
 
   const formatearMonto = (valor) => {
@@ -231,12 +234,6 @@ export default function PagoFormMulti({
         if (duplicados.length > 1) errors.push("Número de cheque duplicado");
       }
       if (!forma.fechaCobro) errors.push("Fecha de cobro requerida");
-      else {
-        const fechaCobro = new Date(forma.fechaCobro);
-        const hoy = new Date();
-        hoy.setHours(0, 0, 0, 0);
-        if (fechaCobro < hoy) errors.push("La fecha de cobro ya pasó");
-      }
       if (!forma.banco?.trim()) errors.push("Banco requerido");
     }
     if (forma.formaPago === "Transferencia" || forma.formaPago === "Deposito") {
@@ -430,6 +427,29 @@ export default function PagoFormMulti({
       return;
     }
 
+    // Verificar si hay fechas de cobro pasadas
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const tieneCobrosPasados = detallesPago.some((detalle) => {
+      if (
+        (detalle.formaPago === "Cheque" || detalle.formaPago === "E-Cheq") &&
+        detalle.fechaCobro
+      ) {
+        const fechaCobro = new Date(detalle.fechaCobro);
+        return fechaCobro < hoy;
+      }
+      return false;
+    });
+
+    if (tieneCobrosPasados) {
+      setShowConfirmCobrosPasados(true);
+      return;
+    }
+
+    await procesarPago();
+  };
+
+  const procesarPago = async () => {
     try {
       const detallesFinales = [];
       const saldosTemporales = new Map();
@@ -1359,6 +1379,12 @@ export default function PagoFormMulti({
                             <div>
                               <label className="block text-xs font-medium text-gray-600 mb-1">
                                 Fecha de Cobro
+                                <span
+                                  className="ml-1 text-gray-500"
+                                  title="Puedes seleccionar fechas pasadas para registrar pagos históricos"
+                                >
+                                  💡
+                                </span>
                               </label>
                               <input
                                 type="date"
@@ -1372,6 +1398,7 @@ export default function PagoFormMulti({
                                 }
                                 onClick={(e) => e.target.showPicker?.()}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                title="Puedes seleccionar fechas pasadas para pagos históricos"
                               />
                             </div>
                             <div>
@@ -2096,6 +2123,21 @@ export default function PagoFormMulti({
           </div>
         </div>
       )}
+
+      {/* Modal de confirmación para fechas pasadas */}
+      <ConfirmModal
+        isOpen={showConfirmCobrosPasados}
+        onClose={() => setShowConfirmCobrosPasados(false)}
+        onConfirm={async () => {
+          setShowConfirmCobrosPasados(false);
+          await procesarPago();
+        }}
+        title="Fechas de Cobro Pasadas"
+        message="Has ingresado una o más fechas de cobro pasadas. Esto es útil para registrar pagos históricos, pero verifica que la información sea correcta."
+        confirmText="Continuar"
+        cancelText="Revisar"
+        type="warning"
+      />
     </div>
   );
 }
