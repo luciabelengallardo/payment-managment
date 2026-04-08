@@ -310,14 +310,6 @@ export default function PagoFormMulti({
     setValidationErrors(ajustadosErrores);
   };
 
-  const duplicarDetallePago = (index) => {
-    const formaDuplicar = detallesPago[index];
-    const nuevaForma = { ...formaDuplicar, numeroCheque: "", monto: "" };
-    const nuevosDetalles = [...detallesPago];
-    nuevosDetalles.splice(index + 1, 0, nuevaForma);
-    setDetallesPago(nuevosDetalles);
-  };
-
   const toggleColapsar = (index) => {
     const nuevas = new Set(formasColapsadas);
     if (nuevas.has(index)) nuevas.delete(index);
@@ -1145,34 +1137,7 @@ export default function PagoFormMulti({
                             >
                               ✏️ Editar
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => duplicarDetallePago(index)}
-                              className="p-1.5 rounded-md transition"
-                              style={{
-                                backgroundColor: "#E8EFF7",
-                                color: "#1F3A5F",
-                                border: "1px solid #1F3A5F",
-                              }}
-                              onMouseEnter={(e) =>
-                                (e.currentTarget.style.backgroundColor =
-                                  "#D1DFE8")
-                              }
-                              onMouseLeave={(e) =>
-                                (e.currentTarget.style.backgroundColor =
-                                  "#E8EFF7")
-                              }
-                              title="Duplicar forma de pago"
-                            >
-                              <svg
-                                className="w-4 h-4"
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                              >
-                                <path d="M9 2a2 2 0 00-2 2v8a2 2 0 002 2h6a2 2 0 002-2V6.414A2 2 0 0016.414 5L14 2.586A2 2 0 0012.586 2H9z" />
-                                <path d="M3 8a2 2 0 012-2v10h8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
-                              </svg>
-                            </button>
+
                             <button
                               type="button"
                               onClick={() => eliminarDetallePago(index)}
@@ -1322,35 +1287,6 @@ export default function PagoFormMulti({
                                 Eliminar
                               </button>
                             )}
-                            <button
-                              type="button"
-                              onClick={() => duplicarDetallePago(index)}
-                              className="px-3 py-2 rounded-lg transition mt-5 font-medium flex items-center gap-1.5"
-                              style={{
-                                backgroundColor: "#E8EFF7",
-                                color: "#1F3A5F",
-                                border: "1px solid #1F3A5F",
-                              }}
-                              onMouseEnter={(e) =>
-                                (e.currentTarget.style.backgroundColor =
-                                  "#D1E0F5")
-                              }
-                              onMouseLeave={(e) =>
-                                (e.currentTarget.style.backgroundColor =
-                                  "#E8EFF7")
-                              }
-                              title="Duplicar forma de pago con los mismos datos"
-                            >
-                              <svg
-                                className="w-4 h-4"
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                              >
-                                <path d="M9 2a2 2 0 00-2 2v8a2 2 0 002 2h6a2 2 0 002-2V6.414A2 2 0 0016.414 5L14 2.586A2 2 0 0012.586 2H9z" />
-                                <path d="M3 8a2 2 0 012-2v10h8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
-                              </svg>
-                              Duplicar
-                            </button>
                           </div>
                         </div>
 
