@@ -103,16 +103,13 @@ async function initializeDatabase() {
     await db.exec(initSQL);
     console.log("✅ Tablas de Turso inicializadas");
 
-    // Migraciones para Turso: agregar columna tenant si no existe
+    // Migraciones para Turso: agregar columna tenant si no existe Y actualizar valores NULL
     console.log("🔧 Verificando migraciones de Turso...");
     try {
-      // Agregar tenant a clientes (sin NOT NULL primero)
+      // Clientes: agregar columna y actualizar NULL
       try {
         await db.exec(
           "ALTER TABLE clientes ADD COLUMN tenant TEXT DEFAULT 'cliente'",
-        );
-        await db.exec(
-          "UPDATE clientes SET tenant = 'cliente' WHERE tenant IS NULL",
         );
         console.log("✅ Columna 'tenant' agregada a clientes");
       } catch (err) {
@@ -125,14 +122,15 @@ async function initializeDatabase() {
           console.error("⚠️  Error en clientes:", err.message);
         }
       }
+      // SIEMPRE actualizar valores NULL
+      await db.exec(
+        "UPDATE clientes SET tenant = 'cliente' WHERE tenant IS NULL",
+      );
 
-      // Agregar tenant a documentos
+      // Documentos: agregar columna y actualizar NULL
       try {
         await db.exec(
           "ALTER TABLE documentos ADD COLUMN tenant TEXT DEFAULT 'cliente'",
-        );
-        await db.exec(
-          "UPDATE documentos SET tenant = 'cliente' WHERE tenant IS NULL",
         );
         console.log("✅ Columna 'tenant' agregada a documentos");
       } catch (err) {
@@ -145,14 +143,15 @@ async function initializeDatabase() {
           console.error("⚠️  Error en documentos:", err.message);
         }
       }
+      // SIEMPRE actualizar valores NULL
+      await db.exec(
+        "UPDATE documentos SET tenant = 'cliente' WHERE tenant IS NULL",
+      );
 
-      // Agregar tenant a pagos
+      // Pagos: agregar columna y actualizar NULL
       try {
         await db.exec(
           "ALTER TABLE pagos ADD COLUMN tenant TEXT DEFAULT 'cliente'",
-        );
-        await db.exec(
-          "UPDATE pagos SET tenant = 'cliente' WHERE tenant IS NULL",
         );
         console.log("✅ Columna 'tenant' agregada a pagos");
       } catch (err) {
@@ -165,14 +164,13 @@ async function initializeDatabase() {
           console.error("⚠️  Error en pagos:", err.message);
         }
       }
+      // SIEMPRE actualizar valores NULL
+      await db.exec("UPDATE pagos SET tenant = 'cliente' WHERE tenant IS NULL");
 
-      // Agregar tenant a usuarios
+      // Usuarios: agregar columna y actualizar NULL
       try {
         await db.exec(
           "ALTER TABLE usuarios ADD COLUMN tenant TEXT DEFAULT 'cliente'",
-        );
-        await db.exec(
-          "UPDATE usuarios SET tenant = 'cliente' WHERE tenant IS NULL",
         );
         console.log("✅ Columna 'tenant' agregada a usuarios");
       } catch (err) {
@@ -185,6 +183,12 @@ async function initializeDatabase() {
           console.error("⚠️  Error en usuarios:", err.message);
         }
       }
+      // SIEMPRE actualizar valores NULL
+      await db.exec(
+        "UPDATE usuarios SET tenant = 'cliente' WHERE tenant IS NULL",
+      );
+
+      console.log("✅ Migraciones de tenant completadas");
     } catch (err) {
       console.error("⚠️  Error general en migraciones:", err.message);
     }
