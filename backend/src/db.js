@@ -123,9 +123,10 @@ async function initializeDatabase() {
         }
       }
       // SIEMPRE actualizar valores NULL
-      await db.exec(
-        "UPDATE clientes SET tenant = 'cliente' WHERE tenant IS NULL",
-      );
+      const clientesResult = await db
+        .prepare("UPDATE clientes SET tenant = 'cliente' WHERE tenant IS NULL")
+        .run();
+      console.log(`  → ${clientesResult.changes || 0} clientes actualizados`);
 
       // Documentos: agregar columna y actualizar NULL
       try {
@@ -144,8 +145,13 @@ async function initializeDatabase() {
         }
       }
       // SIEMPRE actualizar valores NULL
-      await db.exec(
-        "UPDATE documentos SET tenant = 'cliente' WHERE tenant IS NULL",
+      const documentosResult = await db
+        .prepare(
+          "UPDATE documentos SET tenant = 'cliente' WHERE tenant IS NULL",
+        )
+        .run();
+      console.log(
+        `  → ${documentosResult.changes || 0} documentos actualizados`,
       );
 
       // Pagos: agregar columna y actualizar NULL
@@ -165,7 +171,10 @@ async function initializeDatabase() {
         }
       }
       // SIEMPRE actualizar valores NULL
-      await db.exec("UPDATE pagos SET tenant = 'cliente' WHERE tenant IS NULL");
+      const pagosResult = await db
+        .prepare("UPDATE pagos SET tenant = 'cliente' WHERE tenant IS NULL")
+        .run();
+      console.log(`  → ${pagosResult.changes || 0} pagos actualizados`);
 
       // Usuarios: agregar columna y actualizar NULL
       try {
@@ -184,9 +193,10 @@ async function initializeDatabase() {
         }
       }
       // SIEMPRE actualizar valores NULL
-      await db.exec(
-        "UPDATE usuarios SET tenant = 'cliente' WHERE tenant IS NULL",
-      );
+      const usuariosResult = await db
+        .prepare("UPDATE usuarios SET tenant = 'cliente' WHERE tenant IS NULL")
+        .run();
+      console.log(`  → ${usuariosResult.changes || 0} usuarios actualizados`);
 
       console.log("✅ Migraciones de tenant completadas");
     } catch (err) {
