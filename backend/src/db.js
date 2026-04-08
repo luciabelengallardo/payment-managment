@@ -106,47 +106,59 @@ async function initializeDatabase() {
     // Migraciones para Turso: agregar columna tenant si no existe
     console.log("🔧 Verificando migraciones de Turso...");
     try {
-      // Agregar tenant a clientes
+      // Agregar tenant a clientes (sin NOT NULL primero)
       try {
-        await db.exec("ALTER TABLE clientes ADD COLUMN tenant TEXT NOT NULL DEFAULT 'cliente'");
+        await db.exec("ALTER TABLE clientes ADD COLUMN tenant TEXT DEFAULT 'cliente'");
+        await db.exec("UPDATE clientes SET tenant = 'cliente' WHERE tenant IS NULL");
         console.log("✅ Columna 'tenant' agregada a clientes");
       } catch (err) {
-        if (!err.message.includes("duplicate column")) {
+        if (err.message.includes("duplicate column") || err.message.includes("already exists")) {
           console.log("ℹ️  Columna 'tenant' ya existe en clientes");
+        } else {
+          console.error("⚠️  Error en clientes:", err.message);
         }
       }
 
       // Agregar tenant a documentos
       try {
-        await db.exec("ALTER TABLE documentos ADD COLUMN tenant TEXT NOT NULL DEFAULT 'cliente'");
+        await db.exec("ALTER TABLE documentos ADD COLUMN tenant TEXT DEFAULT 'cliente'");
+        await db.exec("UPDATE documentos SET tenant = 'cliente' WHERE tenant IS NULL");
         console.log("✅ Columna 'tenant' agregada a documentos");
       } catch (err) {
-        if (!err.message.includes("duplicate column")) {
+        if (err.message.includes("duplicate column") || err.message.includes("already exists")) {
           console.log("ℹ️  Columna 'tenant' ya existe en documentos");
+        } else {
+          console.error("⚠️  Error en documentos:", err.message);
         }
       }
 
       // Agregar tenant a pagos
       try {
-        await db.exec("ALTER TABLE pagos ADD COLUMN tenant TEXT NOT NULL DEFAULT 'cliente'");
+        await db.exec("ALTER TABLE pagos ADD COLUMN tenant TEXT DEFAULT 'cliente'");
+        await db.exec("UPDATE pagos SET tenant = 'cliente' WHERE tenant IS NULL");
         console.log("✅ Columna 'tenant' agregada a pagos");
       } catch (err) {
-        if (!err.message.includes("duplicate column")) {
+        if (err.message.includes("duplicate column") || err.message.includes("already exists")) {
           console.log("ℹ️  Columna 'tenant' ya existe en pagos");
+        } else {
+          console.error("⚠️  Error en pagos:", err.message);
         }
       }
 
       // Agregar tenant a usuarios
       try {
-        await db.exec("ALTER TABLE usuarios ADD COLUMN tenant TEXT NOT NULL DEFAULT 'cliente'");
+        await db.exec("ALTER TABLE usuarios ADD COLUMN tenant TEXT DEFAULT 'cliente'");
+        await db.exec("UPDATE usuarios SET tenant = 'cliente' WHERE tenant IS NULL");
         console.log("✅ Columna 'tenant' agregada a usuarios");
       } catch (err) {
-        if (!err.message.includes("duplicate column")) {
+        if (err.message.includes("duplicate column") || err.message.includes("already exists")) {
           console.log("ℹ️  Columna 'tenant' ya existe en usuarios");
+        } else {
+          console.error("⚠️  Error en usuarios:", err.message);
         }
       }
     } catch (err) {
-      console.error("⚠️  Error en migraciones de Turso:", err.message);
+      console.error("⚠️  Error general en migraciones:", err.message);
     }
   } else {
     db.exec(initSQL);
