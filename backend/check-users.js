@@ -3,7 +3,7 @@ import db from "./src/db.js";
 console.log("\n=== VERIFICANDO USUARIOS EN LA BASE DE DATOS ===\n");
 
 try {
-  const users = db.prepare("SELECT * FROM usuarios").all();
+  const users = await db.prepare("SELECT * FROM usuarios").all();
 
   console.log(`Total de usuarios: ${users.length}\n`);
 
@@ -12,7 +12,9 @@ try {
     console.log(
       "   El backend debería crear usuarios automáticamente al inicializarse.",
     );
-    console.log("   Verifica que el backend se haya reiniciado después del deploy.\n");
+    console.log(
+      "   Verifica que el backend se haya reiniciado después del deploy.\n",
+    );
   } else {
     console.log("Usuarios encontrados:\n");
     users.forEach((user) => {
@@ -28,7 +30,7 @@ try {
   }
 
   // Verificar específicamente el usuario demo
-  const demoUser = db
+  const demoUser = await db
     .prepare("SELECT * FROM usuarios WHERE username = ?")
     .get("demo");
 

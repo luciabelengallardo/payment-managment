@@ -8,7 +8,7 @@ async function createUsers() {
     console.log("🔧 Inicializando usuarios...\n");
 
     // Verificar si ya existen usuarios
-    const existingUsers = db.prepare("SELECT * FROM usuarios").all();
+    const existingUsers = await db.prepare("SELECT * FROM usuarios").all();
 
     if (existingUsers.length > 0) {
       console.log("✓ Usuarios ya existen:");
@@ -26,7 +26,7 @@ async function createUsers() {
 
     // Crear admin
     const adminPassword = await bcrypt.hash("admin123", 10);
-    db.prepare(
+    await db.prepare(
       `INSERT INTO usuarios (username, email, password, firstName, lastName, role, tenant, isActive)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
@@ -43,7 +43,7 @@ async function createUsers() {
 
     // Crear juliogallardo
     const clientePassword = await bcrypt.hash("dk1958", 10);
-    db.prepare(
+    await db.prepare(
       `INSERT INTO usuarios (username, email, password, firstName, lastName, role, tenant, isActive)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
@@ -60,7 +60,7 @@ async function createUsers() {
 
     // Crear demo
     const demoPassword = await bcrypt.hash("demo123", 10);
-    db.prepare(
+    await db.prepare(
       `INSERT INTO usuarios (username, email, password, firstName, lastName, role, tenant, isActive)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(

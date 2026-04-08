@@ -21,7 +21,7 @@ router.post("/login", async (req, res) => {
     }
 
     // Buscar usuario en la base de datos
-    const user = db
+    const user = await db
       .prepare("SELECT * FROM usuarios WHERE username = ? OR email = ?")
       .get(username, username);
 

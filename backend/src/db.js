@@ -256,11 +256,11 @@ async function initializeDatabase() {
 
   // Crear usuarios iniciales si no existen
   try {
-    const userCount = db
+    const userCount = await db
       .prepare("SELECT COUNT(*) as count FROM usuarios")
       .get();
 
-    if (userCount.count === 0) {
+    if (!userCount || userCount.count === 0) {
       console.log("👥 Creando usuarios iniciales...");
       const bcrypt = await import("bcryptjs");
 
@@ -268,7 +268,7 @@ async function initializeDatabase() {
       const clientePass = await bcrypt.default.hash("dk1958", 10);
       const demoPass = await bcrypt.default.hash("demo123", 10);
 
-      db.prepare(
+      await db.prepare(
         `INSERT INTO usuarios (username, email, password, firstName, lastName, role, tenant, isActive)
                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
@@ -282,7 +282,7 @@ async function initializeDatabase() {
         1,
       );
 
-      db.prepare(
+      await db.prepare(
         `INSERT INTO usuarios (username, email, password, firstName, lastName, role, tenant, isActive)
                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
@@ -296,7 +296,7 @@ async function initializeDatabase() {
         1,
       );
 
-      db.prepare(
+      await db.prepare(
         `INSERT INTO usuarios (username, email, password, firstName, lastName, role, tenant, isActive)
                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
@@ -311,6 +311,8 @@ async function initializeDatabase() {
       );
 
       console.log("✅ Usuarios creados");
+    } else {
+      console.log(`ℹ️  Ya existen ${userCount.count} usuarios en la base de datos`);
     }
   } catch (err) {
     console.error("Error al verificar usuarios:", err);

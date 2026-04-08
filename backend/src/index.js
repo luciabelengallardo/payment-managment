@@ -66,15 +66,17 @@ const server = app.listen(PORT, "0.0.0.0", async () => {
 
   // Verificar usuarios en la base de datos
   try {
-    const userCount = db
+    const userCount = await db
       .prepare("SELECT COUNT(*) as count FROM usuarios")
       .get();
-    console.log(`👥 Usuarios en base de datos: ${userCount.count}`);
+    console.log(`👥 Usuarios en base de datos: ${userCount?.count ?? 0}`);
 
-    if (userCount.count > 0) {
-      const users = db.prepare("SELECT username, isActive FROM usuarios").all();
+    if (userCount && userCount.count > 0) {
+      const users = await db.prepare("SELECT username, isActive FROM usuarios").all();
       users.forEach((u) =>
-        console.log(`   - ${u.username}: ${u.isActive ? "✅ activo" : "❌ inactivo"}`),
+        console.log(
+          `   - ${u.username}: ${u.isActive ? "✅ activo" : "❌ inactivo"}`,
+        ),
       );
     } else {
       console.log(
