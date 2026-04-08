@@ -12,7 +12,13 @@ async function diagnose() {
     console.log("\n=== DIAGNÓSTICO TURSO ===\n");
 
     // Verificar cada tabla
-    const tables = ["usuarios", "clientes", "documentos", "pagos", "pagos_detalle"];
+    const tables = [
+      "usuarios",
+      "clientes",
+      "documentos",
+      "pagos",
+      "pagos_detalle",
+    ];
 
     for (const table of tables) {
       console.log(`\n📋 Tabla: ${table}`);
@@ -31,7 +37,9 @@ async function diagnose() {
     console.log("\n\n=== CONTEO DE REGISTROS ===\n");
     for (const table of tables) {
       try {
-        const count = await db.execute(`SELECT COUNT(*) as total FROM ${table}`);
+        const count = await db.execute(
+          `SELECT COUNT(*) as total FROM ${table}`,
+        );
         console.log(`${table}: ${count.rows[0].total}`);
       } catch (err) {
         console.error(`${table}: ERROR - ${err.message}`);

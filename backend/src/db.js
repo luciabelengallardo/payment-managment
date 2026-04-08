@@ -108,11 +108,18 @@ async function initializeDatabase() {
     try {
       // Agregar tenant a clientes (sin NOT NULL primero)
       try {
-        await db.exec("ALTER TABLE clientes ADD COLUMN tenant TEXT DEFAULT 'cliente'");
-        await db.exec("UPDATE clientes SET tenant = 'cliente' WHERE tenant IS NULL");
+        await db.exec(
+          "ALTER TABLE clientes ADD COLUMN tenant TEXT DEFAULT 'cliente'",
+        );
+        await db.exec(
+          "UPDATE clientes SET tenant = 'cliente' WHERE tenant IS NULL",
+        );
         console.log("✅ Columna 'tenant' agregada a clientes");
       } catch (err) {
-        if (err.message.includes("duplicate column") || err.message.includes("already exists")) {
+        if (
+          err.message.includes("duplicate column") ||
+          err.message.includes("already exists")
+        ) {
           console.log("ℹ️  Columna 'tenant' ya existe en clientes");
         } else {
           console.error("⚠️  Error en clientes:", err.message);
@@ -121,11 +128,18 @@ async function initializeDatabase() {
 
       // Agregar tenant a documentos
       try {
-        await db.exec("ALTER TABLE documentos ADD COLUMN tenant TEXT DEFAULT 'cliente'");
-        await db.exec("UPDATE documentos SET tenant = 'cliente' WHERE tenant IS NULL");
+        await db.exec(
+          "ALTER TABLE documentos ADD COLUMN tenant TEXT DEFAULT 'cliente'",
+        );
+        await db.exec(
+          "UPDATE documentos SET tenant = 'cliente' WHERE tenant IS NULL",
+        );
         console.log("✅ Columna 'tenant' agregada a documentos");
       } catch (err) {
-        if (err.message.includes("duplicate column") || err.message.includes("already exists")) {
+        if (
+          err.message.includes("duplicate column") ||
+          err.message.includes("already exists")
+        ) {
           console.log("ℹ️  Columna 'tenant' ya existe en documentos");
         } else {
           console.error("⚠️  Error en documentos:", err.message);
@@ -134,11 +148,18 @@ async function initializeDatabase() {
 
       // Agregar tenant a pagos
       try {
-        await db.exec("ALTER TABLE pagos ADD COLUMN tenant TEXT DEFAULT 'cliente'");
-        await db.exec("UPDATE pagos SET tenant = 'cliente' WHERE tenant IS NULL");
+        await db.exec(
+          "ALTER TABLE pagos ADD COLUMN tenant TEXT DEFAULT 'cliente'",
+        );
+        await db.exec(
+          "UPDATE pagos SET tenant = 'cliente' WHERE tenant IS NULL",
+        );
         console.log("✅ Columna 'tenant' agregada a pagos");
       } catch (err) {
-        if (err.message.includes("duplicate column") || err.message.includes("already exists")) {
+        if (
+          err.message.includes("duplicate column") ||
+          err.message.includes("already exists")
+        ) {
           console.log("ℹ️  Columna 'tenant' ya existe en pagos");
         } else {
           console.error("⚠️  Error en pagos:", err.message);
@@ -147,11 +168,18 @@ async function initializeDatabase() {
 
       // Agregar tenant a usuarios
       try {
-        await db.exec("ALTER TABLE usuarios ADD COLUMN tenant TEXT DEFAULT 'cliente'");
-        await db.exec("UPDATE usuarios SET tenant = 'cliente' WHERE tenant IS NULL");
+        await db.exec(
+          "ALTER TABLE usuarios ADD COLUMN tenant TEXT DEFAULT 'cliente'",
+        );
+        await db.exec(
+          "UPDATE usuarios SET tenant = 'cliente' WHERE tenant IS NULL",
+        );
         console.log("✅ Columna 'tenant' agregada a usuarios");
       } catch (err) {
-        if (err.message.includes("duplicate column") || err.message.includes("already exists")) {
+        if (
+          err.message.includes("duplicate column") ||
+          err.message.includes("already exists")
+        ) {
           console.log("ℹ️  Columna 'tenant' ya existe en usuarios");
         } else {
           console.error("⚠️  Error en usuarios:", err.message);
@@ -318,51 +346,59 @@ async function initializeDatabase() {
       const clientePass = await bcrypt.default.hash("dk1958", 10);
       const demoPass = await bcrypt.default.hash("demo123", 10);
 
-      await db.prepare(
-        `INSERT INTO usuarios (username, email, password, firstName, lastName, role, tenant, isActive)
+      await db
+        .prepare(
+          `INSERT INTO usuarios (username, email, password, firstName, lastName, role, tenant, isActive)
                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      ).run(
-        "admin",
-        "admin@paymentmanager.com",
-        adminPass,
-        "Admin",
-        "Sistema",
-        "admin",
-        "cliente",
-        1,
-      );
+        )
+        .run(
+          "admin",
+          "admin@paymentmanager.com",
+          adminPass,
+          "Admin",
+          "Sistema",
+          "admin",
+          "cliente",
+          1,
+        );
 
-      await db.prepare(
-        `INSERT INTO usuarios (username, email, password, firstName, lastName, role, tenant, isActive)
+      await db
+        .prepare(
+          `INSERT INTO usuarios (username, email, password, firstName, lastName, role, tenant, isActive)
                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      ).run(
-        "juliogallardo",
-        "gallardojulio21@yahoo.com.ar",
-        clientePass,
-        "Julio",
-        "Gallardo",
-        "cliente",
-        "cliente",
-        1,
-      );
+        )
+        .run(
+          "juliogallardo",
+          "gallardojulio21@yahoo.com.ar",
+          clientePass,
+          "Julio",
+          "Gallardo",
+          "cliente",
+          "cliente",
+          1,
+        );
 
-      await db.prepare(
-        `INSERT INTO usuarios (username, email, password, firstName, lastName, role, tenant, isActive)
+      await db
+        .prepare(
+          `INSERT INTO usuarios (username, email, password, firstName, lastName, role, tenant, isActive)
                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      ).run(
-        "demo",
-        "demo@paymentmanager.com",
-        demoPass,
-        "Demo",
-        "User",
-        "demo",
-        "demo",
-        1,
-      );
+        )
+        .run(
+          "demo",
+          "demo@paymentmanager.com",
+          demoPass,
+          "Demo",
+          "User",
+          "demo",
+          "demo",
+          1,
+        );
 
       console.log("✅ Usuarios creados");
     } else {
-      console.log(`ℹ️  Ya existen ${userCount.count} usuarios en la base de datos`);
+      console.log(
+        `ℹ️  Ya existen ${userCount.count} usuarios en la base de datos`,
+      );
     }
   } catch (err) {
     console.error("Error al verificar usuarios:", err);
