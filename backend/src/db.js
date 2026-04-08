@@ -102,14 +102,52 @@ async function initializeDatabase() {
   if (useTurso) {
     await db.exec(initSQL);
     console.log("✅ Tablas de Turso inicializadas");
-  } else {
-    db.exec(initSQL);
-    console.log("✅ Tablas SQLite inicializadas");
-  }
 
-  if (useTurso) {
-    await db.exec(initSQL);
-    console.log("✅ Tablas de Turso inicializadas");
+    // Migraciones para Turso: agregar columna tenant si no existe
+    console.log("🔧 Verificando migraciones de Turso...");
+    try {
+      // Agregar tenant a clientes
+      try {
+        await db.exec("ALTER TABLE clientes ADD COLUMN tenant TEXT NOT NULL DEFAULT 'cliente'");
+        console.log("✅ Columna 'tenant' agregada a clientes");
+      } catch (err) {
+        if (!err.message.includes("duplicate column")) {
+          console.log("ℹ️  Columna 'tenant' ya existe en clientes");
+        }
+      }
+
+      // Agregar tenant a documentos
+      try {
+        await db.exec("ALTER TABLE documentos ADD COLUMN tenant TEXT NOT NULL DEFAULT 'cliente'");
+        console.log("✅ Columna 'tenant' agregada a documentos");
+      } catch (err) {
+        if (!err.message.includes("duplicate column")) {
+          console.log("ℹ️  Columna 'tenant' ya existe en documentos");
+        }
+      }
+
+      // Agregar tenant a pagos
+      try {
+        await db.exec("ALTER TABLE pagos ADD COLUMN tenant TEXT NOT NULL DEFAULT 'cliente'");
+        console.log("✅ Columna 'tenant' agregada a pagos");
+      } catch (err) {
+        if (!err.message.includes("duplicate column")) {
+          console.log("ℹ️  Columna 'tenant' ya existe en pagos");
+        }
+      }
+
+      // Agregar tenant a usuarios
+      try {
+        await db.exec("ALTER TABLE usuarios ADD COLUMN tenant TEXT NOT NULL DEFAULT 'cliente'");
+        console.log("✅ Columna 'tenant' agregada a usuarios");
+      } catch (err) {
+        if (!err.message.includes("duplicate column")) {
+          console.log("ℹ️  Columna 'tenant' ya existe en usuarios");
+        }
+      }
+    } catch (err) {
+      console.error("⚠️  Error en migraciones de Turso:", err.message);
+    }
   } else {
     db.exec(initSQL);
     console.log("✅ Tablas SQLite inicializadas");
