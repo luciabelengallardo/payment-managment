@@ -147,7 +147,7 @@ export default function Facturas() {
     // Filtro por estado - calcular con pagos reales
     const pagadoDoc = calcularTotalPagado(doc.id);
     const saldoReal = doc.monto - pagadoDoc;
-    
+
     if (filtroEstado === "pendientes" && saldoReal <= 0) {
       return false;
     }

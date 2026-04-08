@@ -77,14 +77,14 @@ export default function DocumentoTable({
     const totalPagado = documentos.reduce((sum, doc) => {
       return sum + calcularTotalPagado(doc.id);
     }, 0);
-    
+
     // Calcular saldo pendiente real basado en monto - pagos
     const saldoPendiente = documentos.reduce((sum, doc) => {
       const pagadoDoc = calcularTotalPagado(doc.id);
       const saldo = doc.monto - pagadoDoc;
       return sum + Math.max(0, saldo);
     }, 0);
-    
+
     const saldoAFavor = documentos.reduce((sum, doc) => {
       const pagadoDoc = calcularTotalPagado(doc.id);
       const saldo = doc.monto - pagadoDoc;
@@ -179,9 +179,7 @@ export default function DocumentoTable({
 
                 <div className="flex justify-between pt-2 border-t border-gray-200">
                   <span className="text-gray-600">
-                    {saldoPendiente < 0
-                      ? "Saldo a Favor:"
-                      : "Saldo Pendiente:"}
+                    {saldoPendiente < 0 ? "Saldo a Favor:" : "Saldo Pendiente:"}
                   </span>
                   <span
                     className="font-bold"
