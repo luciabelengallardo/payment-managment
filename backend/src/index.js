@@ -60,8 +60,30 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "OK", message: "Backend funcionando correctamente" });
 });
 
-const server = app.listen(PORT, "0.0.0.0", () => {
+const server = app.listen(PORT, "0.0.0.0", async () => {
   console.log(`✅ Backend corriendo en puerto ${PORT}`);
+  console.log(`🔍 Versión desplegada: ${new Date().toISOString()}`);
+
+  // Verificar usuarios en la base de datos
+  try {
+    const userCount = db
+      .prepare("SELECT COUNT(*) as count FROM usuarios")
+      .get();
+    console.log(`👥 Usuarios en base de datos: ${userCount.count}`);
+
+    if (userCount.count > 0) {
+      const users = db.prepare("SELECT username, isActive FROM usuarios").all();
+      users.forEach((u) =>
+        console.log(`   - ${u.username}: ${u.isActive ? "✅ activo" : "❌ inactivo"}`),
+      );
+    } else {
+      console.log(
+        "⚠️  NO HAY USUARIOS - deberían haberse creado en la inicialización",
+      );
+    }
+  } catch (err) {
+    console.error("❌ Error verificando usuarios:", err);
+  }
 });
 
 // Manejo de errores del servidor

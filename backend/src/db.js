@@ -256,25 +256,60 @@ async function initializeDatabase() {
 
   // Crear usuarios iniciales si no existen
   try {
-    const userCount = db.prepare("SELECT COUNT(*) as count FROM usuarios").get();
-    
+    const userCount = db
+      .prepare("SELECT COUNT(*) as count FROM usuarios")
+      .get();
+
     if (userCount.count === 0) {
       console.log("👥 Creando usuarios iniciales...");
       const bcrypt = await import("bcryptjs");
-      
+
       const adminPass = await bcrypt.default.hash("admin123", 10);
       const clientePass = await bcrypt.default.hash("dk1958", 10);
       const demoPass = await bcrypt.default.hash("demo123", 10);
-      
-      db.prepare(`INSERT INTO usuarios (username, email, password, firstName, lastName, role, tenant, isActive)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run("admin", "admin@paymentmanager.com", adminPass, "Admin", "Sistema", "admin", "cliente", 1);
-      
-      db.prepare(`INSERT INTO usuarios (username, email, password, firstName, lastName, role, tenant, isActive)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run("juliogallardo", "gallardojulio21@yahoo.com.ar", clientePass, "Julio", "Gallardo", "cliente", "cliente", 1);
-      
-      db.prepare(`INSERT INTO usuarios (username, email, password, firstName, lastName, role, tenant, isActive)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run("demo", "demo@paymentmanager.com", demoPass, "Demo", "User", "demo", "demo", 1);
-      
+
+      db.prepare(
+        `INSERT INTO usuarios (username, email, password, firstName, lastName, role, tenant, isActive)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(
+        "admin",
+        "admin@paymentmanager.com",
+        adminPass,
+        "Admin",
+        "Sistema",
+        "admin",
+        "cliente",
+        1,
+      );
+
+      db.prepare(
+        `INSERT INTO usuarios (username, email, password, firstName, lastName, role, tenant, isActive)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(
+        "juliogallardo",
+        "gallardojulio21@yahoo.com.ar",
+        clientePass,
+        "Julio",
+        "Gallardo",
+        "cliente",
+        "cliente",
+        1,
+      );
+
+      db.prepare(
+        `INSERT INTO usuarios (username, email, password, firstName, lastName, role, tenant, isActive)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(
+        "demo",
+        "demo@paymentmanager.com",
+        demoPass,
+        "Demo",
+        "User",
+        "demo",
+        "demo",
+        1,
+      );
+
       console.log("✅ Usuarios creados");
     }
   } catch (err) {
