@@ -25,7 +25,7 @@ async function limpiarDemo() {
   try {
     // Eliminar SOLO datos DEMO en orden (debido a foreign keys)
     await db.execute(
-      "DELETE FROM pagos_detalle WHERE pagoId IN (SELECT id FROM pagos WHERE tenant = 'demo')"
+      "DELETE FROM pagos_detalle WHERE pagoId IN (SELECT id FROM pagos WHERE tenant = 'demo')",
     );
     console.log("✅ Detalles de pagos DEMO eliminados");
 
@@ -40,13 +40,13 @@ async function limpiarDemo() {
 
     // Verificar que los datos de producción están intactos
     const clientesProduccion = await db.execute(
-      "SELECT COUNT(*) as count FROM clientes WHERE tenant = 'cliente'"
+      "SELECT COUNT(*) as count FROM clientes WHERE tenant = 'cliente'",
     );
     const documentosProduccion = await db.execute(
-      "SELECT COUNT(*) as count FROM documentos WHERE tenant = 'cliente'"
+      "SELECT COUNT(*) as count FROM documentos WHERE tenant = 'cliente'",
     );
     const pagosProduccion = await db.execute(
-      "SELECT COUNT(*) as count FROM pagos WHERE tenant = 'cliente'"
+      "SELECT COUNT(*) as count FROM pagos WHERE tenant = 'cliente'",
     );
 
     console.log("\n📊 DATOS DE PRODUCCIÓN (INTACTOS):");
@@ -56,7 +56,6 @@ async function limpiarDemo() {
 
     console.log("\n🎉 Datos DEMO limpiados exitosamente!");
     console.log("✅ Usuario 'demo' sigue existiendo y puede volver a usarse");
-    
   } catch (error) {
     console.error("❌ Error limpiando datos:", error.message);
     process.exit(1);
