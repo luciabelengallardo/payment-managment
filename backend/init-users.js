@@ -8,7 +8,7 @@ async function createUsers() {
     console.log("🔧 Inicializando usuarios...\n");
 
     // Verificar si ya existen usuarios
-    const existingUsers = db.prepare("SELECT * FROM usuarios").all();
+    const existingUsers = await db.prepare("SELECT * FROM usuarios").all();
 
     if (existingUsers.length > 0) {
       console.log("✓ Usuarios ya existen:");
@@ -26,53 +26,59 @@ async function createUsers() {
 
     // Crear admin
     const adminPassword = await bcrypt.hash("admin123", 10);
-    db.prepare(
-      `INSERT INTO usuarios (username, email, password, firstName, lastName, role, tenant, isActive)
+    await db
+      .prepare(
+        `INSERT INTO usuarios (username, email, password, firstName, lastName, role, tenant, isActive)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(
-      "admin",
-      "admin@paymentmanager.com",
-      adminPassword,
-      "Administrador",
-      "Sistema",
-      "admin",
-      "cliente",
-      1,
-    );
+      )
+      .run(
+        "admin",
+        "admin@paymentmanager.com",
+        adminPassword,
+        "Administrador",
+        "Sistema",
+        "admin",
+        "cliente",
+        1,
+      );
     console.log("✅ admin creado (admin123)");
 
     // Crear juliogallardo
     const clientePassword = await bcrypt.hash("dk1958", 10);
-    db.prepare(
-      `INSERT INTO usuarios (username, email, password, firstName, lastName, role, tenant, isActive)
+    await db
+      .prepare(
+        `INSERT INTO usuarios (username, email, password, firstName, lastName, role, tenant, isActive)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(
-      "juliogallardo",
-      "gallardojulio21@yahoo.com.ar",
-      clientePassword,
-      "Julio",
-      "Gallardo",
-      "cliente",
-      "cliente",
-      1,
-    );
+      )
+      .run(
+        "juliogallardo",
+        "gallardojulio21@yahoo.com.ar",
+        clientePassword,
+        "Julio",
+        "Gallardo",
+        "cliente",
+        "cliente",
+        1,
+      );
     console.log("✅ juliogallardo creado (dk1958)");
 
     // Crear demo
     const demoPassword = await bcrypt.hash("demo123", 10);
-    db.prepare(
-      `INSERT INTO usuarios (username, email, password, firstName, lastName, role, tenant, isActive)
+    await db
+      .prepare(
+        `INSERT INTO usuarios (username, email, password, firstName, lastName, role, tenant, isActive)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    ).run(
-      "demo",
-      "demo@paymentmanager.com",
-      demoPassword,
-      "Usuario",
-      "Demo",
-      "demo",
-      "demo",
-      1,
-    );
+      )
+      .run(
+        "demo",
+        "demo@paymentmanager.com",
+        demoPassword,
+        "Usuario",
+        "Demo",
+        "demo",
+        "demo",
+        1,
+      );
     console.log("✅ demo creado (demo123)");
 
     console.log("\n✅ Usuarios inicializados correctamente\n");

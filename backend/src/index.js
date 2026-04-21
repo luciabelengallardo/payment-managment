@@ -25,14 +25,12 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: function (origin, callback) {
-      // Permitir requests sin origin (como Postman, curl, apps móviles)
       if (!origin) return callback(null, true);
 
       if (allowedOrigins.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
-        console.log("❌ Origen no permitido:", origin);
-        callback(new Error("No permitido por CORS"));
+        callback(new Error("Origen no permitido"));
       }
     },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -60,8 +58,34 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "OK", message: "Backend funcionando correctamente" });
 });
 
-const server = app.listen(PORT, "0.0.0.0", () => {
+const server = app.listen(PORT, "0.0.0.0", async () => {
   console.log(`✅ Backend corriendo en puerto ${PORT}`);
+  console.log(`🔍 Versión desplegada: ${new Date().toISOString()}`);
+
+  // Verificar usuarios en la base de datos
+  try {
+    const userCount = await db
+      .prepare("SELECT COUNT(*) as count FROM usuarios")
+      .get();
+    console.log(`👥 Usuarios en base de datos: ${userCount?.count ?? 0}`);
+
+    if (userCount && userCount.count > 0) {
+      const users = await db
+        .prepare("SELECT username, isActive FROM usuarios")
+        .all();
+      users.forEach((u) =>
+        console.log(
+          `   - ${u.username}: ${u.isActive ? "✅ activo" : "❌ inactivo"}`,
+        ),
+      );
+    } else {
+      console.log(
+        "⚠️  NO HAY USUARIOS - deberían haberse creado en la inicialización",
+      );
+    }
+  } catch (err) {
+    console.error("❌ Error verificando usuarios:", err);
+  }
 });
 
 // Manejo de errores del servidor

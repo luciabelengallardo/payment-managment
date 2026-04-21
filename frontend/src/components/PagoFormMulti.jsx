@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import axios from "../utils/axios";
+import ConfirmModal from "./ConfirmModal";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
 
@@ -29,6 +30,8 @@ export default function PagoFormMulti({
   const [formasColapsadas, setFormasColapsadas] = useState(new Set());
   const [validationErrors, setValidationErrors] = useState({});
   const [showBorradorRecuperacion, setShowBorradorRecuperacion] =
+    useState(false);
+  const [showConfirmCobrosPasados, setShowConfirmCobrosPasados] =
     useState(false);
 
   const formatearMonto = (valor) => {
@@ -231,12 +234,6 @@ export default function PagoFormMulti({
         if (duplicados.length > 1) errors.push("Número de cheque duplicado");
       }
       if (!forma.fechaCobro) errors.push("Fecha de cobro requerida");
-      else {
-        const fechaCobro = new Date(forma.fechaCobro);
-        const hoy = new Date();
-        hoy.setHours(0, 0, 0, 0);
-        if (fechaCobro < hoy) errors.push("La fecha de cobro ya pasó");
-      }
       if (!forma.banco?.trim()) errors.push("Banco requerido");
     }
     if (forma.formaPago === "Transferencia" || forma.formaPago === "Deposito") {
@@ -311,14 +308,6 @@ export default function PagoFormMulti({
       else ajustadosErrores[k] = nuevosErrores[k];
     });
     setValidationErrors(ajustadosErrores);
-  };
-
-  const duplicarDetallePago = (index) => {
-    const formaDuplicar = detallesPago[index];
-    const nuevaForma = { ...formaDuplicar, numeroCheque: "", monto: "" };
-    const nuevosDetalles = [...detallesPago];
-    nuevosDetalles.splice(index + 1, 0, nuevaForma);
-    setDetallesPago(nuevosDetalles);
   };
 
   const toggleColapsar = (index) => {
@@ -430,6 +419,29 @@ export default function PagoFormMulti({
       return;
     }
 
+    // Verificar si hay fechas de cobro pasadas
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    const tieneCobrosPasados = detallesPago.some((detalle) => {
+      if (
+        (detalle.formaPago === "Cheque" || detalle.formaPago === "E-Cheq") &&
+        detalle.fechaCobro
+      ) {
+        const fechaCobro = new Date(detalle.fechaCobro);
+        return fechaCobro < hoy;
+      }
+      return false;
+    });
+
+    if (tieneCobrosPasados) {
+      setShowConfirmCobrosPasados(true);
+      return;
+    }
+
+    await procesarPago();
+  };
+
+  const procesarPago = async () => {
     try {
       const detallesFinales = [];
       const saldosTemporales = new Map();
@@ -1125,34 +1137,7 @@ export default function PagoFormMulti({
                             >
                               ✏️ Editar
                             </button>
-                            <button
-                              type="button"
-                              onClick={() => duplicarDetallePago(index)}
-                              className="p-1.5 rounded-md transition"
-                              style={{
-                                backgroundColor: "#E8EFF7",
-                                color: "#1F3A5F",
-                                border: "1px solid #1F3A5F",
-                              }}
-                              onMouseEnter={(e) =>
-                                (e.currentTarget.style.backgroundColor =
-                                  "#D1DFE8")
-                              }
-                              onMouseLeave={(e) =>
-                                (e.currentTarget.style.backgroundColor =
-                                  "#E8EFF7")
-                              }
-                              title="Duplicar forma de pago"
-                            >
-                              <svg
-                                className="w-4 h-4"
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                              >
-                                <path d="M9 2a2 2 0 00-2 2v8a2 2 0 002 2h6a2 2 0 002-2V6.414A2 2 0 0016.414 5L14 2.586A2 2 0 0012.586 2H9z" />
-                                <path d="M3 8a2 2 0 012-2v10h8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
-                              </svg>
-                            </button>
+
                             <button
                               type="button"
                               onClick={() => eliminarDetallePago(index)}
@@ -1302,35 +1287,6 @@ export default function PagoFormMulti({
                                 Eliminar
                               </button>
                             )}
-                            <button
-                              type="button"
-                              onClick={() => duplicarDetallePago(index)}
-                              className="px-3 py-2 rounded-lg transition mt-5 font-medium flex items-center gap-1.5"
-                              style={{
-                                backgroundColor: "#E8EFF7",
-                                color: "#1F3A5F",
-                                border: "1px solid #1F3A5F",
-                              }}
-                              onMouseEnter={(e) =>
-                                (e.currentTarget.style.backgroundColor =
-                                  "#D1E0F5")
-                              }
-                              onMouseLeave={(e) =>
-                                (e.currentTarget.style.backgroundColor =
-                                  "#E8EFF7")
-                              }
-                              title="Duplicar forma de pago con los mismos datos"
-                            >
-                              <svg
-                                className="w-4 h-4"
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                              >
-                                <path d="M9 2a2 2 0 00-2 2v8a2 2 0 002 2h6a2 2 0 002-2V6.414A2 2 0 0016.414 5L14 2.586A2 2 0 0012.586 2H9z" />
-                                <path d="M3 8a2 2 0 012-2v10h8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
-                              </svg>
-                              Duplicar
-                            </button>
                           </div>
                         </div>
 
@@ -1359,6 +1315,12 @@ export default function PagoFormMulti({
                             <div>
                               <label className="block text-xs font-medium text-gray-600 mb-1">
                                 Fecha de Cobro
+                                <span
+                                  className="ml-1 text-gray-500"
+                                  title="Puedes seleccionar fechas pasadas para registrar pagos históricos"
+                                >
+                                  💡
+                                </span>
                               </label>
                               <input
                                 type="date"
@@ -1372,6 +1334,7 @@ export default function PagoFormMulti({
                                 }
                                 onClick={(e) => e.target.showPicker?.()}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                title="Puedes seleccionar fechas pasadas para pagos históricos"
                               />
                             </div>
                             <div>
@@ -2096,6 +2059,21 @@ export default function PagoFormMulti({
           </div>
         </div>
       )}
+
+      {/* Modal de confirmación para fechas pasadas */}
+      <ConfirmModal
+        isOpen={showConfirmCobrosPasados}
+        onClose={() => setShowConfirmCobrosPasados(false)}
+        onConfirm={async () => {
+          setShowConfirmCobrosPasados(false);
+          await procesarPago();
+        }}
+        title="Fechas de Cobro Pasadas"
+        message="Has ingresado una o más fechas de cobro pasadas. Esto es útil para registrar pagos históricos, pero verifica que la información sea correcta."
+        confirmText="Continuar"
+        cancelText="Revisar"
+        type="warning"
+      />
     </div>
   );
 }

@@ -102,20 +102,142 @@ async function initializeDatabase() {
   if (useTurso) {
     await db.exec(initSQL);
     console.log("✅ Tablas de Turso inicializadas");
+
+    // Migraciones para Turso: agregar columna tenant si no existe Y actualizar valores NULL
+    console.log("🔧 Verificando migraciones de Turso...");
+    try {
+      // Clientes: agregar columna y actualizar NULL
+      try {
+        await db.exec(
+          "ALTER TABLE clientes ADD COLUMN tenant TEXT DEFAULT 'cliente'",
+        );
+        console.log("✅ Columna 'tenant' agregada a clientes");
+      } catch (err) {
+        if (
+          err.message.includes("duplicate column") ||
+          err.message.includes("already exists")
+        ) {
+          console.log("ℹ️  Columna 'tenant' ya existe en clientes");
+        } else {
+          console.error("⚠️  Error en clientes:", err.message);
+        }
+      }
+      // SIEMPRE actualizar valores NULL
+      const clientesResult = await db
+        .prepare("UPDATE clientes SET tenant = 'cliente' WHERE tenant IS NULL")
+        .run();
+      console.log(`  → ${clientesResult.changes || 0} clientes actualizados`);
+
+      // Documentos: agregar columna y actualizar NULL
+      try {
+        await db.exec(
+          "ALTER TABLE documentos ADD COLUMN tenant TEXT DEFAULT 'cliente'",
+        );
+        console.log("✅ Columna 'tenant' agregada a documentos");
+      } catch (err) {
+        if (
+          err.message.includes("duplicate column") ||
+          err.message.includes("already exists")
+        ) {
+          console.log("ℹ️  Columna 'tenant' ya existe en documentos");
+        } else {
+          console.error("⚠️  Error en documentos:", err.message);
+        }
+      }
+      // SIEMPRE actualizar valores NULL
+      const documentosResult = await db
+        .prepare(
+          "UPDATE documentos SET tenant = 'cliente' WHERE tenant IS NULL",
+        )
+        .run();
+      console.log(
+        `  → ${documentosResult.changes || 0} documentos actualizados`,
+      );
+
+      // Pagos: agregar columna y actualizar NULL
+      try {
+        await db.exec(
+          "ALTER TABLE pagos ADD COLUMN tenant TEXT DEFAULT 'cliente'",
+        );
+        console.log("✅ Columna 'tenant' agregada a pagos");
+      } catch (err) {
+        if (
+          err.message.includes("duplicate column") ||
+          err.message.includes("already exists")
+        ) {
+          console.log("ℹ️  Columna 'tenant' ya existe en pagos");
+        } else {
+          console.error("⚠️  Error en pagos:", err.message);
+        }
+      }
+      // SIEMPRE actualizar valores NULL
+      const pagosResult = await db
+        .prepare("UPDATE pagos SET tenant = 'cliente' WHERE tenant IS NULL")
+        .run();
+      console.log(`  → ${pagosResult.changes || 0} pagos actualizados`);
+
+      // Usuarios: agregar columna y actualizar NULL
+      try {
+        await db.exec(
+          "ALTER TABLE usuarios ADD COLUMN tenant TEXT DEFAULT 'cliente'",
+        );
+        console.log("✅ Columna 'tenant' agregada a usuarios");
+      } catch (err) {
+        if (
+          err.message.includes("duplicate column") ||
+          err.message.includes("already exists")
+        ) {
+          console.log("ℹ️  Columna 'tenant' ya existe en usuarios");
+        } else {
+          console.error("⚠️  Error en usuarios:", err.message);
+        }
+      }
+      // SIEMPRE actualizar valores NULL
+      const usuariosResult = await db
+        .prepare("UPDATE usuarios SET tenant = 'cliente' WHERE tenant IS NULL")
+        .run();
+      console.log(`  → ${usuariosResult.changes || 0} usuarios actualizados`);
+
+      // migrar pagos_detalle: agregar columnas faltantes
+      console.log("🔧 Verificando columnas de pagos_detalle...");
+      const columnasDetalle = [
+        { name: "numeroCheque", type: "TEXT" },
+        { name: "fechaCobro", type: "TEXT" },
+        { name: "banco", type: "TEXT" },
+        { name: "fecha", type: "TEXT" },
+        { name: "documentoId", type: "INTEGER" },
+        { name: "documentoTipo", type: "TEXT" },
+        { name: "documentoNumero", type: "TEXT" },
+      ];
+
+      for (const col of columnasDetalle) {
+        try {
+          await db.exec(
+            `ALTER TABLE pagos_detalle ADD COLUMN ${col.name} ${col.type}`,
+          );
+          console.log(`  ✅ Columna '${col.name}' agregada a pagos_detalle`);
+        } catch (err) {
+          if (
+            err.message.includes("duplicate column") ||
+            err.message.includes("already exists")
+          ) {
+            // Columna ya existe, ok
+          } else {
+            console.error(`  ⚠️  Error agregando ${col.name}:`, err.message);
+          }
+        }
+      }
+
+      console.log("✅ Migraciones de tenant completadas");
+    } catch (err) {
+      console.error("⚠️  Error general en migraciones:", err.message);
+    }
   } else {
     db.exec(initSQL);
     console.log("✅ Tablas SQLite inicializadas");
   }
 
-  if (useTurso) {
-    await db.exec(initSQL);
-    console.log("✅ Tablas de Turso inicializadas");
-  } else {
-    db.exec(initSQL);
-    console.log("✅ Tablas SQLite inicializadas");
-  }
-
-  // Migraciones (solo para SQLite local, Turso ya tiene las tablas correctas)
+  // migraciones
   if (!useTurso) {
     try {
       const tableInfo = db.prepare("PRAGMA table_info(clientes)").all();
@@ -124,11 +246,9 @@ async function initializeDatabase() {
         db.exec("ALTER TABLE clientes ADD COLUMN fecha TEXT");
         console.log("✅ Migración: columna 'fecha' agregada");
       }
-    } catch (error) {
-      // Ignorar si ya existe
-    }
+    } catch (error) {}
 
-    // Migración: Agregar columna tenant a tablas existentes
+    // migración: gregar columna tenant a tablas existentes
     try {
       const usuariosInfo = db.prepare("PRAGMA table_info(usuarios)").all();
       const tieneTenantUsuarios = usuariosInfo.some(
@@ -140,9 +260,7 @@ async function initializeDatabase() {
         );
         console.log("✅ Migración: columna 'tenant' agregada a usuarios");
       }
-    } catch (error) {
-      // Ignorar si ya existe
-    }
+    } catch (error) {}
 
     try {
       const clientesInfo = db.prepare("PRAGMA table_info(clientes)").all();
@@ -155,9 +273,7 @@ async function initializeDatabase() {
         );
         console.log("✅ Migración: columna 'tenant' agregada a clientes");
       }
-    } catch (error) {
-      // Ignorar si ya existe
-    }
+    } catch (error) {}
 
     try {
       const documentosInfo = db.prepare("PRAGMA table_info(documentos)").all();
@@ -170,9 +286,7 @@ async function initializeDatabase() {
         );
         console.log("✅ Migración: columna 'tenant' agregada a documentos");
       }
-    } catch (error) {
-      // Ignorar si ya existe
-    }
+    } catch (error) {}
 
     try {
       const pagosInfo = db.prepare("PRAGMA table_info(pagos)").all();
@@ -183,9 +297,7 @@ async function initializeDatabase() {
         );
         console.log("✅ Migración: columna 'tenant' agregada a pagos");
       }
-    } catch (error) {
-      // Ignorar si ya existe
-    }
+    } catch (error) {}
 
     try {
       const tableInfo = db.prepare("PRAGMA table_info(pagos)").all();
@@ -198,9 +310,7 @@ async function initializeDatabase() {
         );
         console.log("✅ Migración: columna 'documentoId' agregada");
       }
-    } catch (error) {
-      // Ignorar si ya existe
-    }
+    } catch (error) {}
 
     try {
       db.exec(
@@ -211,7 +321,7 @@ async function initializeDatabase() {
       // Ignorar si ya existe
     }
 
-    // Migración: Agregar nuevas columnas a pagos_detalle
+    // migracion: gregar nuevas columnas a pagos_detalle
     try {
       const tableInfo = db.prepare("PRAGMA table_info(pagos_detalle)").all();
       console.log(
@@ -254,10 +364,81 @@ async function initializeDatabase() {
     }
   }
 
+  // crear usuarios iniciales si no existen
+  try {
+    const userCount = await db
+      .prepare("SELECT COUNT(*) as count FROM usuarios")
+      .get();
+
+    if (!userCount || userCount.count === 0) {
+      console.log("👥 Creando usuarios iniciales...");
+      const bcrypt = await import("bcryptjs");
+
+      const adminPass = await bcrypt.default.hash("admin123", 10);
+      const clientePass = await bcrypt.default.hash("dk1958", 10);
+      const demoPass = await bcrypt.default.hash("demo123", 10);
+
+      await db
+        .prepare(
+          `INSERT INTO usuarios (username, email, password, firstName, lastName, role, tenant, isActive)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          "admin",
+          "admin@paymentmanager.com",
+          adminPass,
+          "Admin",
+          "Sistema",
+          "admin",
+          "cliente",
+          1,
+        );
+
+      await db
+        .prepare(
+          `INSERT INTO usuarios (username, email, password, firstName, lastName, role, tenant, isActive)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          "juliogallardo",
+          "gallardojulio21@yahoo.com.ar",
+          clientePass,
+          "Julio",
+          "Gallardo",
+          "cliente",
+          "cliente",
+          1,
+        );
+
+      await db
+        .prepare(
+          `INSERT INTO usuarios (username, email, password, firstName, lastName, role, tenant, isActive)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          "demo",
+          "demo@paymentmanager.com",
+          demoPass,
+          "Demo",
+          "User",
+          "demo",
+          "demo",
+          1,
+        );
+
+      console.log("✅ Usuarios creados");
+    } else {
+      console.log(
+        `ℹ️  Ya existen ${userCount.count} usuarios en la base de datos`,
+      );
+    }
+  } catch (err) {
+    console.error("Error al verificar usuarios:", err);
+  }
+
   return db;
 }
 
-// Inicializar y exportar la base de datos
 await initializeDatabase();
 
 export default db;

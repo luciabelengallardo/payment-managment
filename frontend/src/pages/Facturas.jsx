@@ -144,11 +144,14 @@ export default function Facturas() {
       }
     }
 
-    // Filtro por estado
-    if (filtroEstado === "pendientes" && doc.saldoPendiente <= 0) {
+    // Filtro por estado - calcular con pagos reales
+    const pagadoDoc = calcularTotalPagado(doc.id);
+    const saldoReal = doc.monto - pagadoDoc;
+
+    if (filtroEstado === "pendientes" && saldoReal <= 0) {
       return false;
     }
-    if (filtroEstado === "pagadas" && doc.saldoPendiente > 0) {
+    if (filtroEstado === "pagadas" && saldoReal > 0) {
       return false;
     }
 
@@ -227,19 +230,27 @@ export default function Facturas() {
       (sum, doc) => sum + calcularTotalPagado(doc.id),
       0,
     );
-    const saldoPendiente = documentosOrdenados.reduce(
-      (sum, doc) => sum + Math.max(0, doc.saldoPendiente || 0),
-      0,
-    );
+    // Calcular saldo pendiente real basado en monto - pagos
+    const saldoPendiente = documentosOrdenados.reduce((sum, doc) => {
+      const pagadoDoc = calcularTotalPagado(doc.id);
+      const saldo = doc.monto - pagadoDoc;
+      return sum + Math.max(0, saldo);
+    }, 0);
 
     return { montoTotal, totalPagado, saldoPendiente };
   };
 
   const calcularContadores = () => {
-    // Usar todos los documentos, no los filtrados
+    // Usar todos los documentos, no los filtrados, y calcular con pagos reales
     const total = documentos.length;
-    const pagadas = documentos.filter((d) => d.saldoPendiente <= 0).length;
-    const pendientes = documentos.filter((d) => d.saldoPendiente > 0).length;
+    const pagadas = documentos.filter((d) => {
+      const pagado = calcularTotalPagado(d.id);
+      return d.monto - pagado <= 0;
+    }).length;
+    const pendientes = documentos.filter((d) => {
+      const pagado = calcularTotalPagado(d.id);
+      return d.monto - pagado > 0;
+    }).length;
     return { total, pagadas, pendientes };
   };
 
@@ -435,7 +446,7 @@ export default function Facturas() {
               documentosOrdenados.map((doc) => {
                 const cliente = getClienteInfo(doc.clienteId);
                 const totalPagado = calcularTotalPagado(doc.id);
-                const saldo = doc.saldoPendiente || 0;
+                const saldo = doc.monto - totalPagado;
                 const badge = getEstadoBadge(saldo, doc.monto);
 
                 return (
@@ -619,7 +630,7 @@ export default function Facturas() {
                   documentosOrdenados.map((doc) => {
                     const cliente = getClienteInfo(doc.clienteId);
                     const totalPagado = calcularTotalPagado(doc.id);
-                    const saldo = doc.saldoPendiente || 0;
+                    const saldo = doc.monto - totalPagado;
                     const badge = getEstadoBadge(saldo, doc.monto);
 
                     return (

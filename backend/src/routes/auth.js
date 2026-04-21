@@ -5,7 +5,7 @@ import db from "../db.js";
 
 const router = express.Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || "payment-manager-secret-key-2026";
+const JWT_SECRET = process.env.JWT_SECRET || "payment-manager-secret-2026";
 const JWT_EXPIRES_IN = "24h";
 
 // Login
@@ -21,7 +21,7 @@ router.post("/login", async (req, res) => {
     }
 
     // Buscar usuario en la base de datos
-    const user = db
+    const user = await db
       .prepare("SELECT * FROM usuarios WHERE username = ? OR email = ?")
       .get(username, username);
 
